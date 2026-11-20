@@ -197,6 +197,19 @@ public static class PanelPlacement
     }
 }
 
+/// <summary>The pointer a hit asks for, so the button reads as clickable.</summary>
+public enum PanelPointer
+{
+    Arrow,
+    Hand,
+}
+
+public static class PanelCursor
+{
+    public static PanelPointer For(PanelHit hit) =>
+        hit == PanelHit.Quit ? PanelPointer.Hand : PanelPointer.Arrow;
+}
+
 public enum PanelInput
 {
     IconClicked,

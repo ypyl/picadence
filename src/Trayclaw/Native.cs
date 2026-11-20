@@ -17,6 +17,11 @@ internal static class Native
     internal const int WM_PAINT = 0x000F;
     internal const int WM_ERASEBKGND = 0x0014;
     internal const int WM_LBUTTONUP = 0x0201;
+    internal const int WM_MOUSEMOVE = 0x0200;
+    internal const int WM_MOUSELEAVE = 0x02A3;
+    internal const int WM_SETCURSOR = 0x0020;
+    internal const int HTCLIENT = 1;
+    internal const uint TME_LEAVE = 0x00000002;
 
     internal const int WA_INACTIVE = 0;
     internal const int VK_ESCAPE = 0x1B;
@@ -28,6 +33,7 @@ internal static class Native
     internal const int CS_DROPSHADOW = 0x00020000;
     internal const int DT_LEFT = 0x0000;
     internal const int DT_RIGHT = 0x0002;
+    internal const int DT_CENTER = 0x0001;
     internal const int DT_VCENTER = 0x0004;
     internal const int DT_SINGLELINE = 0x0020;
     internal const int DT_END_ELLIPSIS = 0x8000;
@@ -38,6 +44,8 @@ internal static class Native
     internal const int FW_SEMIBOLD = 600;
     internal const int DefaultDpi = 96;
     internal const int IDC_ARROW = 32512;
+    internal const int IDC_HAND = 32649;
+    internal const int NULL_PEN = 8;
     internal const int SRCCOPY = 0x00CC0020;
     internal const int MONITOR_DEFAULTTONEAREST = 2;
     internal const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
@@ -84,6 +92,15 @@ internal static class Native
         internal int time;
         internal int x;
         internal int y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct TrackMouseEventData
+    {
+        internal int cbSize;
+        internal uint flags;
+        internal nint hwndTrack;
+        internal uint hoverTime;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -183,6 +200,15 @@ internal static class Native
 
     [DllImport("user32.dll")]
     internal static extern nint LoadCursorW(nint instance, nint name);
+
+    [DllImport("user32.dll")]
+    internal static extern nint SetCursor(nint cursor);
+
+    [DllImport("user32.dll")]
+    internal static extern bool TrackMouseEvent(ref TrackMouseEventData tracking);
+
+    [DllImport("user32.dll")]
+    internal static extern bool ScreenToClient(nint hwnd, ref Point point);
 
     [DllImport("user32.dll")]
     internal static extern bool GetCursorPos(out Point point);
@@ -286,6 +312,12 @@ internal static class Native
 
     [DllImport("gdi32.dll")]
     internal static extern bool Ellipse(nint hdc, int left, int top, int right, int bottom);
+
+    [DllImport("gdi32.dll")]
+    internal static extern bool RoundRect(nint hdc, int left, int top, int right, int bottom, int width, int height);
+
+    [DllImport("gdi32.dll")]
+    internal static extern nint GetStockObject(int index);
 
     [DllImport("gdi32.dll")]
     internal static extern bool BitBlt(

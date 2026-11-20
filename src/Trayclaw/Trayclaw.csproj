@@ -15,4 +15,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Trayclaw.Tests" />
+  </ItemGroup>
+
 </Project>

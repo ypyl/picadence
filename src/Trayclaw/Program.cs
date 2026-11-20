@@ -1,6 +1,8 @@
-// The tray process: one hidden window, one icon, one menu, one message loop.
-// It shows no agent state yet. The next change adds the poll and fills the menu;
-// this file owns only the plumbing so that change is about behaviour.
+// The tray process: one hidden window, one icon, one menu, one timer.
+//
+// Every decision worth checking lives in AgentStatus, SessionStore, StateFile,
+// and IconPixels. This file only turns their answers into Win32 calls, so the
+// untested surface stays as thin as the platform allows.
 using System.Runtime.InteropServices;
 
 namespace Trayclaw;
@@ -8,23 +10,45 @@ namespace Trayclaw;
 internal static class Program
 {
     private const int TrayCallbackMessage = Native.WM_APP + 1;
+    private const int PollTimerId = 1;
 
     private static nint _window;
     private static Native.NotifyIconData _icon;
+    private static readonly Dictionary<AgentState, nint> Icons = [];
+    private static readonly string StateDirectory = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "trayclaw",
+        "agents");
+    private static readonly SessionStore Store = new(StateDirectory, IsProcessAlive);
+
+    private static IReadOnlyList<AgentSession> _sessions = [];
+    private static AgentState _shownState = AgentState.Idle;
+    private static string _shownTooltip = string.Empty;
 
     [UnmanagedCallersOnly]
     private static nint WindowProc(nint hwnd, int message, nint wParam, nint lParam)
     {
         switch (message)
         {
+            case TrayCallbackMessage when (int)(lParam & 0xFFFF) == Native.WM_RBUTTONUP:
+                ShowMenu();
+                return 0;
             case TrayCallbackMessage:
-                HandleTrayInput((int)(lParam & 0xFFFF));
+                return 0;
+            case Native.WM_TIMER when (int)wParam == PollTimerId:
+                Refresh();
                 return 0;
             case Native.WM_CLOSE:
                 Native.DestroyWindow(hwnd);
                 return 0;
             case Native.WM_DESTROY:
+                Native.KillTimer(hwnd, PollTimerId);
                 Native.Shell_NotifyIconW(Native.NIM_DELETE, ref _icon);
+                foreach (var icon in Icons.Values)
+                {
+                    Native.DestroyIcon(icon);
+                }
+
                 Native.PostQuitMessage(0);
                 return 0;
             default:
@@ -32,12 +56,24 @@ internal static class Program
         }
     }
 
-    private static void HandleTrayInput(int mouseMessage)
+    /// <summary>One pass: drop what ended, aggregate what is left, show it.</summary>
+    private static void Refresh()
     {
-        if (mouseMessage == Native.WM_RBUTTONUP)
+        _sessions = Store.ReadAll(DateTimeOffset.UtcNow);
+
+        var state = AgentStatus.Aggregate(_sessions);
+        var tooltip = AgentStatus.Tooltip(_sessions);
+        if (state == _shownState && tooltip == _shownTooltip)
         {
-            ShowMenu();
+            return;
         }
+
+        _shownState = state;
+        _shownTooltip = tooltip;
+        _icon.hIcon = Icons[state];
+        _icon.szTip = tooltip;
+        _icon.uFlags = Native.NIF_MESSAGE | Native.NIF_ICON | Native.NIF_TIP;
+        Native.Shell_NotifyIconW(Native.NIM_MODIFY, ref _icon);
     }
 
     private static void ShowMenu()
@@ -50,7 +86,22 @@ internal static class Program
 
         try
         {
-            Native.AppendMenuW(menu, Native.MF_STRING, Native.CommandQuit, "Quit");
+            foreach (var entry in AgentStatus.Menu(_sessions, DateTimeOffset.UtcNow, Native.CommandQuit))
+            {
+                switch (entry.Kind)
+                {
+                    case MenuEntryKind.Separator:
+                        Native.AppendMenuW(menu, Native.MF_SEPARATOR, 0, string.Empty);
+                        break;
+                    case MenuEntryKind.Quit:
+                        Native.AppendMenuW(menu, Native.MF_STRING, entry.CommandId, entry.Label);
+                        break;
+                    default:
+                        Native.AppendMenuW(menu, Native.MF_STRING | Native.MF_GRAYED, 0, entry.Label);
+                        break;
+                }
+            }
+
             Native.GetCursorPos(out var cursor);
             // Without this the menu stays on screen when the user clicks away.
             Native.SetForegroundWindow(_window);
@@ -69,10 +120,37 @@ internal static class Program
         }
     }
 
+    /// <summary>A process id is alive when it can still be opened for a query.</summary>
+    private static bool IsProcessAlive(int pid)
+    {
+        if (pid <= 0)
+        {
+            return false;
+        }
+
+        var handle = Native.OpenProcess(Native.PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        if (handle == 0)
+        {
+            return false;
+        }
+
+        Native.CloseHandle(handle);
+        return true;
+    }
+
+    private static unsafe nint CreateIconFor(AgentState state) =>
+        Native.CreateIcon(
+            0, IconPixels.Size, IconPixels.Size, 1, 32,
+            IconPixels.AndMask(), IconPixels.Bgra(state));
+
     private static unsafe int Main()
     {
-        var instance = Native.GetModuleHandleW(null);
+        foreach (var state in Enum.GetValues<AgentState>())
+        {
+            Icons[state] = CreateIconFor(state);
+        }
 
+        var instance = Native.GetModuleHandleW(null);
         var windowClass = new Native.WindowClassEx
         {
             cbSize = Marshal.SizeOf<Native.WindowClassEx>(),
@@ -94,6 +172,7 @@ internal static class Program
             return 1;
         }
 
+        _shownTooltip = "trayclaw - no agent sessions";
         _icon = new Native.NotifyIconData
         {
             cbSize = Marshal.SizeOf<Native.NotifyIconData>(),
@@ -101,14 +180,19 @@ internal static class Program
             uID = 1,
             uFlags = Native.NIF_MESSAGE | Native.NIF_ICON | Native.NIF_TIP,
             uCallbackMessage = TrayCallbackMessage,
-            hIcon = Native.LoadIconW(0, (nint)Native.IDI_APPLICATION),
-            szTip = "trayclaw: no agent state yet",
+            hIcon = Icons[AgentState.Idle],
+            szTip = _shownTooltip,
         };
 
         if (!Native.Shell_NotifyIconW(Native.NIM_ADD, ref _icon))
         {
             return 1;
         }
+
+        // The first pass runs before the loop, so a session already on disk shows
+        // up without waiting for a timer tick.
+        Refresh();
+        Native.SetTimer(_window, PollTimerId, TraySettings.PollMilliseconds, 0);
 
         while (true)
         {

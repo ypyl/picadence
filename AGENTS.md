@@ -661,7 +661,7 @@ human, not a guess.
 - Template copied: 2026-11-20
 - Lint: dotnet format trayclaw.sln --verify-no-changes
 - Build: dotnet build trayclaw.sln -c Release
-- Test: dotnet test trayclaw.sln -c Release
+- Test: dotnet test trayclaw.sln -c Release && node --test extensions/trayclaw.test.mjs
 - Run: dotnet run --project src/Trayclaw -c Release
 - Secrets: none, and none planned: both halves exchange local files
 - Environments: one, this machine; agent state lives in %LOCALAPPDATA%/trayclaw and no server exists

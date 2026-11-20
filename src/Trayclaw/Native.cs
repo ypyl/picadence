@@ -9,6 +9,7 @@ internal static class Native
 {
     internal const int WM_DESTROY = 0x0002;
     internal const int WM_CLOSE = 0x0010;
+    internal const int WM_TIMER = 0x0113;
     internal const int WM_RBUTTONUP = 0x0205;
     internal const int WM_APP = 0x8000;
 
@@ -21,11 +22,14 @@ internal static class Native
     internal const int NIF_TIP = 0x04;
 
     internal const int MF_STRING = 0x0000;
+    internal const int MF_GRAYED = 0x00000001;
+    internal const int MF_SEPARATOR = 0x00000800;
     internal const int TPM_RIGHTBUTTON = 0x0002;
     internal const int TPM_RETURNCMD = 0x0100;
 
+    internal const int PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
     internal const int WS_POPUP = unchecked((int)0x80000000);
-    internal const uint IDI_APPLICATION = 32512;
 
     internal const int CommandQuit = 1;
 
@@ -108,9 +112,6 @@ internal static class Native
     internal static extern void PostQuitMessage(int exitCode);
 
     [DllImport("user32.dll")]
-    internal static extern nint LoadIconW(nint instance, nint name);
-
-    [DllImport("user32.dll")]
     internal static extern nint CreatePopupMenu();
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
@@ -131,4 +132,24 @@ internal static class Native
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     internal static extern bool Shell_NotifyIconW(int message, ref NotifyIconData data);
+
+    [DllImport("user32.dll")]
+    internal static extern nint SetTimer(nint hwnd, nint id, uint milliseconds, nint timerProc);
+
+    [DllImport("user32.dll")]
+    internal static extern bool KillTimer(nint hwnd, nint id);
+
+    [DllImport("user32.dll")]
+    internal static extern nint CreateIcon(
+        nint instance, int width, int height, byte planes, byte bitsPerPixel,
+        byte[] andBits, byte[] xorBits);
+
+    [DllImport("user32.dll")]
+    internal static extern bool DestroyIcon(nint icon);
+
+    [DllImport("kernel32.dll")]
+    internal static extern nint OpenProcess(int access, bool inheritHandle, int processId);
+
+    [DllImport("kernel32.dll")]
+    internal static extern bool CloseHandle(nint handle);
 }

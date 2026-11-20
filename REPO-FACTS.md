@@ -17,21 +17,29 @@ Rules:
 
 - `dotnet build trayclaw.sln -c Release` finished in 4 s with 0 warnings and 0
   errors, on this machine, 2026-11-20.
-- `dotnet test trayclaw.sln -c Release` reported 26 passed, 0 failed, 94 ms,
-  2026-11-20.
+- `dotnet test trayclaw.sln -c Release` reported 62 passed, 0 failed, 76 ms,
+  2026-11-20 (26 before the agent-status change).
 - `dotnet format trayclaw.sln --verify-no-changes` exited 0 after `.editorconfig`
   was added, 2026-11-20.
 - `dotnet run --project src/Trayclaw -c Release` started the tray and the child
   process stayed alive past 6 s, 2026-11-20. It runs the JIT build, so it costs
   about 19 MB; the AOT publish is the build a user runs.
 - `dotnet publish src/Trayclaw/Trayclaw.csproj -c Release` produced one
-  `Trayclaw.exe` of 876,032 bytes, with no runtime dependency, 2026-11-20. It
+  `Trayclaw.exe` of 1,556,480 bytes, with no runtime dependency, 2026-11-20. It
   needs the MSVC linker; without Visual Studio Build Tools the AOT step fails.
+  Reading state added `System.Text.Json`, which took the exe from 876,032 bytes.
 - The published exe, idle with one tray icon: 10.35 MB working set and 3.11 MB
   private bytes after 10 s, measured with `Get-Process`, 2026-11-20. An earlier
   run of the same shape read 11.00 MB and 3.16 MB, so treat ~11 MB working set
   and ~3 MB private as the figure. The same source through the JIT measured
   19.98 MB working set, which is why the release build is AOT.
+- The same exe with one live session and one dead session on disk read 11.18 MB
+  working set and 3.42 MB private after 6 s, and removed the dead session's file
+  while leaving the live one, 2026-11-20. That is the whole poll and liveness
+  path running against real files.
+- `node --test extensions/trayclaw.test.mjs` reported 7 passed, 0 failed,
+  2026-11-20. `node --test extensions` does not work on Node 22.23: it treats the
+  directory as a module. Name the file.
 - `dotnet list trayclaw.sln package --vulnerable --include-transitive` reported
   no vulnerable package in either project, 2026-11-20.
 

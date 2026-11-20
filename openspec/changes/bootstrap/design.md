@@ -32,16 +32,17 @@ about behavior, not about Win32.
 
 `SessionRef` exists because the file name is the contract between the extension
 and the tray, and it is the one piece of the contract a machine can test today.
-It maps `(pid, sessionId, cwd)` to `<pid>-<sanitized-session>.json` and back,
-refusing anything that is not a plain file name, so a session id containing a
-separator cannot escape the state directory.
+It maps `(pid, sessionId)` to `<pid>-<session>.json` and back, refusing anything
+that is not a plain file stem, so a session id carrying a separator or a drive
+letter cannot escape the state directory.
 
 ## State contract (fixed here, built next)
 
 - Directory: `%LOCALAPPDATA%\trayclaw\agents\`, created on first write, per user,
   no admin.
-- One file per session, `<pid>-<sessionId>.json`. The session id is sanitized to
-  `[A-Za-z0-9-]`; anything else is dropped, so a name cannot become a path.
+- One file per session, `<pid>-<sessionId>.json`. A session id that is not
+  already `[A-Za-z0-9-]` is rejected, not repaired: repairing would map two
+  different ids onto one file name and let them overwrite each other.
 - Fields: `pid`, `sessionId`, `cwd`, `name`, `model`, `state`, `detail`,
   `updatedAt`. `state` is one of `idle`, `working`, `blocked`, `done`, `error`.
 - Written by the extension on every transition: temp file in the same directory,

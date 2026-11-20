@@ -6,23 +6,34 @@ with no trigger is ignored. The ownership rule and how to add one are in
 
 ## Formatting and naming
 
-None yet.
+`dotnet format trayclaw.sln --verify-no-changes` decides formatting, and
+`.editorconfig` is the only place its settings change. Trigger: a build that
+rewrites a file nobody edited.
 
 ## Error handling and logging
 
-None yet.
+The tray writes no log: a failure returns a non-zero exit code from `Main` and
+the icon never appears. Trigger: a failure a user cannot explain by a missing
+icon.
 
 ## Testing
 
-None yet.
+A test names the behaviour it proves, sits beside the code it covers, and the
+suite runs with `dotnet test`. Trigger: a fix whose bug no test reproduces.
 
 ## Dependencies
 
-None yet.
+The tray has no package reference at all; a package is added only when the
+platform cannot do the job, and every package is pinned in a committed
+`packages.lock.json`. Trigger: a change that edits a lock file by hand.
 
 ## Repository
 
 Ignore build output by a path anchored at the repository root: `/dist/`, never
 `dist/`. An unanchored pattern also matches a directory of that name deeper in
 the tree, so a build can drop files a page loads and still succeed on the machine
-that already has them.
+that already has them. The one exception is `**/bin/` and `**/obj/`, because
+every project here writes its own.
+
+Commit the lock files and never the build output. Trigger: `git status` shows a
+`bin/` or an `obj/` path.

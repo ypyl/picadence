@@ -27,7 +27,7 @@ boundary to the network: neither half opens a socket.
 | # | Threat | Path | Likelihood | Impact | Mitigation |
 |---|---|---|---|---|---|
 | 1 | Tampering: a program writes a file that claims to be a session | state directory, read by the tray | Low | Low | The tray validates the shape, ignores a file it cannot parse, and never derives an action from it. A fake row is UI noise, not a command. |
-| 2 | Path escape: a session id carrying `..` or a separator | extension to file name | Low | Medium | `SessionRef` sanitizes to `[A-Za-z0-9-]` and the tray rejects anything that is not a plain name in the state directory. Tested. |
+| 2 | Path escape: a session id carrying `..`, a separator, or a drive letter | extension to file name | Low | Medium | `SessionRef` rejects an id that is not already a plain stem, rather than repairing it, so it cannot both escape and collide. Tested. |
 | 3 | Denial of service: thousands of stale files make the menu crawl | state directory | Low | Low | Files with a dead `pid` are deleted on read, and the menu lists a bounded number of rows. |
 | 4 | Information disclosure: a project path appears in a screen share or a screenshot | tray tooltip and menu | Medium | Low | Accepted. The paths are already visible in the terminal tab bar next to it. |
 | 5 | Spoofing: a file reports a `pid` of a different running process, so a dead session looks alive | state directory | Low | Low | Liveness is a hint, not an authorization. The worst case is a stale row. |
@@ -43,5 +43,6 @@ boundary to the network: neither half opens a socket.
 
 ## Controls that get a test
 
-- Threat 2: a session id with `..`, `/`, `\`, or a colon produces a plain file
-  name inside the state directory, and decoding it returns the sanitized id.
+- Threat 2: a session id holding `..`, `/`, `\`, a colon, a space, a dot, or a
+  NUL produces no file name at all, and an accepted name resolves inside the
+  state directory.

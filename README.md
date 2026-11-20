@@ -17,9 +17,11 @@ screen, so the answer is one glance away.
 | grey | nothing needs you |
 
 One icon covers every session, and the most urgent state wins: red over amber,
-amber over green. The tooltip counts the sessions by state, and a right click
-lists each one with its folder, what it is doing, and how long ago it changed.
-Quit is the only thing a click can do; trayclaw never sends input to a session.
+amber over green. A click on the icon opens a small dark panel with a summary, one
+row per session (folder, state, what it is doing, how long ago it changed, and the
+state's colour), and Quit. It closes when it loses focus or on Escape, and it
+keeps up while it is open. A row does nothing: trayclaw never sends input to a
+session.
 
 ## Install the pi side
 

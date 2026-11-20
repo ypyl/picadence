@@ -42,9 +42,9 @@ flowchart TB
   pi["External: pi<br/>TUI session in a terminal tab"]
   os["External: Windows shell<br/>notification area"]
 
-  user -->|"right click, Quit"| app
+  user -->|"click, Quit"| app
   app -->|"Shell_NotifyIcon, Win32"| os
-  os -->|"icon, tooltip"| user
+  os -->|"icon, tooltip, panel"| user
   pi -->|"loads"| ext
   ext -->|"writes one file per transition"| store
   app -->|"reads every second, deletes what ended"| store
@@ -75,7 +75,7 @@ flowchart TB
 
 | Container | Responsibility | Path | Technology |
 |---|---|---|---|
-| Trayclaw.exe | tray icon, tooltip, menu, one-second poll, liveness, aggregation | `src/Trayclaw` | C# .NET 10, NativeAOT, Win32 through P/Invoke |
+| Trayclaw.exe | tray icon, tooltip, the status panel, one-second poll, liveness, aggregation | `src/Trayclaw` | C# .NET 10, NativeAOT, Win32 and GDI through P/Invoke |
 | pi extension | maps pi's lifecycle events to one state per session and writes it | `extensions/trayclaw.js` | Node ESM, loaded by pi |
 
 ## Store

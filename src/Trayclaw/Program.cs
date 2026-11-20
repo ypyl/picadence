@@ -1,8 +1,9 @@
-// The tray process: one hidden window, one icon, one menu, one timer.
+// The tray process: a hidden window that owns the icon, a timer that reads the
+// state directory, and a panel that shows what it found.
 //
-// Every decision worth checking lives in AgentStatus, SessionStore, StateFile,
-// and IconPixels. This file only turns their answers into Win32 calls, so the
-// untested surface stays as thin as the platform allows.
+// Every decision worth checking lives in AgentStatus, PanelModel,
+// PanelPlacement, PanelController, SessionStore, StateFile, and PanelTheme. This
+// file only turns their answers into Win32 calls.
 using System.Runtime.InteropServices;
 
 namespace Trayclaw;
@@ -11,6 +12,7 @@ internal static class Program
 {
     private const int TrayCallbackMessage = Native.WM_APP + 1;
     private const int PollTimerId = 1;
+    private const int ProcessPerMonitorV2 = -4;
 
     private static nint _window;
     private static Native.NotifyIconData _icon;
@@ -30,8 +32,8 @@ internal static class Program
     {
         switch (message)
         {
-            case TrayCallbackMessage when (int)(lParam & 0xFFFF) == Native.WM_RBUTTONUP:
-                ShowMenu();
+            case TrayCallbackMessage when (int)(lParam & 0xFFFF) is Native.WM_LBUTTONUP or Native.WM_RBUTTONUP:
+                Panel.Toggle(_sessions, DateTimeOffset.UtcNow, _window);
                 return 0;
             case TrayCallbackMessage:
                 return 0;
@@ -63,61 +65,17 @@ internal static class Program
 
         var state = AgentStatus.Aggregate(_sessions);
         var tooltip = AgentStatus.Tooltip(_sessions);
-        if (state == _shownState && tooltip == _shownTooltip)
+        if (state != _shownState || tooltip != _shownTooltip)
         {
-            return;
+            _shownState = state;
+            _shownTooltip = tooltip;
+            _icon.hIcon = Icons[state];
+            _icon.szTip = tooltip;
+            _icon.uFlags = Native.NIF_MESSAGE | Native.NIF_ICON | Native.NIF_TIP;
+            Native.Shell_NotifyIconW(Native.NIM_MODIFY, ref _icon);
         }
 
-        _shownState = state;
-        _shownTooltip = tooltip;
-        _icon.hIcon = Icons[state];
-        _icon.szTip = tooltip;
-        _icon.uFlags = Native.NIF_MESSAGE | Native.NIF_ICON | Native.NIF_TIP;
-        Native.Shell_NotifyIconW(Native.NIM_MODIFY, ref _icon);
-    }
-
-    private static void ShowMenu()
-    {
-        var menu = Native.CreatePopupMenu();
-        if (menu == 0)
-        {
-            return;
-        }
-
-        try
-        {
-            foreach (var entry in AgentStatus.Menu(_sessions, DateTimeOffset.UtcNow, Native.CommandQuit))
-            {
-                switch (entry.Kind)
-                {
-                    case MenuEntryKind.Separator:
-                        Native.AppendMenuW(menu, Native.MF_SEPARATOR, 0, string.Empty);
-                        break;
-                    case MenuEntryKind.Quit:
-                        Native.AppendMenuW(menu, Native.MF_STRING, entry.CommandId, entry.Label);
-                        break;
-                    default:
-                        Native.AppendMenuW(menu, Native.MF_STRING | Native.MF_GRAYED, 0, entry.Label);
-                        break;
-                }
-            }
-
-            Native.GetCursorPos(out var cursor);
-            // Without this the menu stays on screen when the user clicks away.
-            Native.SetForegroundWindow(_window);
-            var chosen = Native.TrackPopupMenu(
-                menu, Native.TPM_RIGHTBUTTON | Native.TPM_RETURNCMD,
-                cursor.x, cursor.y, 0, _window, 0);
-
-            if (chosen == Native.CommandQuit)
-            {
-                Native.DestroyWindow(_window);
-            }
-        }
-        finally
-        {
-            Native.DestroyMenu(menu);
-        }
+        Panel.Update(_sessions, DateTimeOffset.UtcNow);
     }
 
     /// <summary>A process id is alive when it can still be opened for a query.</summary>
@@ -138,13 +96,16 @@ internal static class Program
         return true;
     }
 
-    private static unsafe nint CreateIconFor(AgentState state) =>
+    private static nint CreateIconFor(AgentState state) =>
         Native.CreateIcon(
             0, IconPixels.Size, IconPixels.Size, 1, 32,
             IconPixels.AndMask(), IconPixels.Bgra(state));
 
     private static unsafe int Main()
     {
+        // Without this every size in the panel is a guess on a scaled monitor.
+        Native.SetProcessDpiAwarenessContext(ProcessPerMonitorV2);
+
         foreach (var state in Enum.GetValues<AgentState>())
         {
             Icons[state] = CreateIconFor(state);
@@ -163,6 +124,8 @@ internal static class Program
         {
             return 1;
         }
+
+        Panel.Register(instance);
 
         _window = Native.CreateWindowExW(
             0, windowClass.lpszClassName, "trayclaw", Native.WS_POPUP,

@@ -28,6 +28,13 @@ Rules:
   `Trayclaw.exe` of 1,556,480 bytes, with no runtime dependency, 2026-11-20. It
   needs the MSVC linker; without Visual Studio Build Tools the AOT step fails.
   Reading state added `System.Text.Json`, which took the exe from 876,032 bytes.
+- With the panel open on a 125% display: 16.3 MB working set and 4.6 MB private,
+  2026-11-20. The panel is 320x320 DIPs at scale 1.25, so the larger surface is
+  the cost, not a leak. Idle with the panel closed stays near the row below.
+- The capture for the visual check has to come from a DPI-aware process. A
+  DPI-unaware one sees 400 physical pixels as 320 and saves a cropped image that
+  looks like a layout bug; `SetProcessDPIAware` in the capture script fixed it,
+  2026-11-20.
 - The published exe, idle with one tray icon: 10.35 MB working set and 3.11 MB
   private bytes after 10 s, measured with `Get-Process`, 2026-11-20. An earlier
   run of the same shape read 11.00 MB and 3.16 MB, so treat ~11 MB working set

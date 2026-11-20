@@ -1,24 +1,14 @@
-// Everything the tray decides that a machine can check: which state wins, what
-// the tooltip says, and which rows the menu carries. Program.cs turns the result
-// into Win32 calls and nothing else.
+// What the icon says: which state wins and what the tooltip counts. The panel
+// carries the detail and lives in PanelModel. Program.cs turns both into Win32
+// calls and nothing else.
 using System.Globalization;
 using System.Text;
 
 namespace Trayclaw;
 
-public enum MenuEntryKind
-{
-    Session,
-    Separator,
-    Quit,
-}
-
-/// <summary>One row of the tray menu.</summary>
-public sealed record MenuEntry(MenuEntryKind Kind, string Label, bool Enabled, int CommandId);
-
 public static class AgentStatus
 {
-    /// <summary>The order the tray menu and the tooltip use for states.</summary>
+    /// <summary>The order the tooltip uses for states.</summary>
     private static readonly AgentState[] BySeverity =
     [
         AgentState.Error,
@@ -86,45 +76,6 @@ public static class AgentStatus
         }
 
         return text.Length <= 120 ? text.ToString() : string.Concat(text.ToString().AsSpan(0, 117), "...");
-    }
-
-    /// <summary>
-    /// The menu rows: the session that changed most recently first, then a
-    /// separator, then the way out. A session row is a label, never a command.
-    /// </summary>
-    public static IReadOnlyList<MenuEntry> Menu(IEnumerable<AgentSession> sessions, DateTimeOffset now, int quitCommandId)
-    {
-        var rows = sessions
-            .OrderByDescending(session => session.UpdatedAt)
-            .ThenBy(session => session.Folder, StringComparer.OrdinalIgnoreCase)
-            .Select(session => new MenuEntry(
-                MenuEntryKind.Session,
-                Label(session, now),
-                Enabled: false,
-                CommandId: 0))
-            .ToList();
-
-        if (rows.Count > 0)
-        {
-            rows.Add(new MenuEntry(MenuEntryKind.Separator, string.Empty, Enabled: false, CommandId: 0));
-        }
-
-        rows.Add(new MenuEntry(MenuEntryKind.Quit, "Quit", Enabled: true, quitCommandId));
-        return rows;
-    }
-
-    private static string Label(AgentSession session, DateTimeOffset now)
-    {
-        var text = new StringBuilder(session.Folder)
-            .Append(" - ")
-            .Append(session.State.Describe());
-
-        if (!string.IsNullOrEmpty(session.Detail))
-        {
-            text.Append(" (").Append(session.Detail).Append(')');
-        }
-
-        return text.Append(" - ").Append(Age.Format(now - session.UpdatedAt)).ToString();
     }
 }
 

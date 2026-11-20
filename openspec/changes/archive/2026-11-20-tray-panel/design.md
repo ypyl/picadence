@@ -12,8 +12,10 @@ a pure function, because that is the part a machine can check.
 - Rounded corners come from DWM (`DWMWA_WINDOW_CORNER_PREFERENCE` = round), not
   from a region, so the edge stays antialiased.
 - `SetProcessDpiAwarenessContext(PER_MONITOR_AWARE_V2)` at startup; every size in
-  this file is in DIPs, and one scale factor from `GetDpiForWindow` turns them into
-  pixels at paint time.
+  this file is in DIPs. The window is sized once from the DPI of the monitor it is
+  created on, and the paint scale is derived from the client rect it actually got,
+  so content can never overflow the frame. Mixed-DPI setups get one scale, which
+  is the `shortcut:` in `TraySettings`' neighbourhood and a later change.
 - Painting: `WM_ERASEBKGND` returns 1, `WM_PAINT` renders into a memory bitmap and
   blits once, so a refresh does not flicker. Fonts are created once per DPI and
   cached.

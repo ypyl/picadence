@@ -1,6 +1,6 @@
 // Reads the state directory and decides what is still alive. Liveness is passed
 // in, so a test can end a session without starting a process.
-namespace Trayclaw;
+namespace Piclaw;
 
 public sealed class SessionStore(string directory, Func<int, bool> isAlive)
 {

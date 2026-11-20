@@ -1,4 +1,4 @@
-namespace Trayclaw.Tests;
+namespace Piclaw.Tests;
 
 public class AgentStatusTests
 {
@@ -8,7 +8,7 @@ public class AgentStatusTests
         int pid,
         AgentState state,
         int secondsAgo = 0,
-        string folder = "trayclaw",
+        string folder = "piclaw",
         string? detail = null) =>
         new(
             new SessionRef(pid, $"session-{pid}"),

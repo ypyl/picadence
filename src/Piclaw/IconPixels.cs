@@ -1,7 +1,7 @@
 // The icon, as data. Sixteen pixels square, painted with one colour per state,
 // and turned into a Windows icon by Program.cs. Keeping the pixels pure means the
 // colour, which is the whole point of a glance, is a test and not a guess.
-namespace Trayclaw;
+namespace Piclaw;
 
 public static class IconPixels
 {

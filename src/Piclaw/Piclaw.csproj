@@ -16,7 +16,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Trayclaw.Tests" />
+    <InternalsVisibleTo Include="Piclaw.Tests" />
   </ItemGroup>
 
 </Project>

@@ -1,11 +1,11 @@
-namespace Trayclaw.Tests;
+namespace Piclaw.Tests;
 
 public sealed class SessionStoreTests : IDisposable
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 20, 21, 0, 0, TimeSpan.Zero);
     private readonly string _directory = Path.Combine(
         Path.GetTempPath(),
-        "trayclaw-store-" + Guid.NewGuid().ToString("N"));
+        "piclaw-store-" + Guid.NewGuid().ToString("N"));
 
     public SessionStoreTests()
     {
@@ -20,7 +20,7 @@ public sealed class SessionStoreTests : IDisposable
         }
     }
 
-    private string WriteFile(int pid, string state, string folder = "trayclaw")
+    private string WriteFile(int pid, string state, string folder = "piclaw")
     {
         var name = SessionRef.TryFileName(pid, $"session-{pid}", out var fileName)
             ? fileName

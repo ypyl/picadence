@@ -1,8 +1,8 @@
-namespace Trayclaw.Tests;
+namespace Piclaw.Tests;
 
 public class SessionRefTests
 {
-    private static readonly string StateDirectory = Path.Combine(Path.GetTempPath(), "trayclaw-state");
+    private static readonly string StateDirectory = Path.Combine(Path.GetTempPath(), "piclaw-state");
 
     [Fact]
     public void FileName_ForAnOrdinarySession_IsPidThenSession()

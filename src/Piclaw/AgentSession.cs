@@ -1,4 +1,4 @@
-namespace Trayclaw;
+namespace Piclaw;
 
 /// <summary>One live agent session, as the tray sees it.</summary>
 /// <param name="Reference">The process and session the state belongs to.</param>

@@ -4,7 +4,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace Trayclaw;
+namespace Piclaw;
 
 public static class AgentStatus
 {
@@ -54,10 +54,10 @@ public static class AgentStatus
 
         if (total == 0)
         {
-            return "trayclaw - no agent sessions";
+            return "piclaw - no agent sessions";
         }
 
-        var text = new StringBuilder("trayclaw - ");
+        var text = new StringBuilder("piclaw - ");
         foreach (var state in BySeverity)
         {
             if (!counts.TryGetValue(state, out var count) || count == 0)
@@ -65,7 +65,7 @@ public static class AgentStatus
                 continue;
             }
 
-            if (text.Length > "trayclaw - ".Length)
+            if (text.Length > "piclaw - ".Length)
             {
                 text.Append(", ");
             }

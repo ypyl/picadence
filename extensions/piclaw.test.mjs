@@ -4,13 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import trayclaw, {
+import piclaw, {
   fileNameFor,
   isPlainSessionId,
   initialState,
   reduce,
   stateDirectory,
-} from "./trayclaw.js";
+} from "./piclaw.js";
 
 function run(states, events) {
   let current = states;
@@ -69,7 +69,7 @@ test("a blocked session keeps its prompt title and drops it when the prompt clos
 test("the state directory sits under the local application data", () => {
   assert.equal(
     stateDirectory({ LOCALAPPDATA: "C:\\Data" }),
-    path.join("C:\\Data", "trayclaw", "agents"),
+    path.join("C:\\Data", "piclaw", "agents"),
   );
 });
 
@@ -82,7 +82,7 @@ test("a session id that is not a plain stem is rejected", () => {
 });
 
 test("a clean pi exit leaves nothing behind", async () => {
-  const localAppData = fs.mkdtempSync(path.join(os.tmpdir(), "trayclaw-state-"));
+  const localAppData = fs.mkdtempSync(path.join(os.tmpdir(), "piclaw-state-"));
   const previous = process.env.LOCALAPPDATA;
   process.env.LOCALAPPDATA = localAppData;
 
@@ -95,7 +95,7 @@ test("a clean pi exit leaves nothing behind", async () => {
         handlers.set(type, list);
       },
     };
-    trayclaw(pi);
+    piclaw(pi);
 
     const ctx = {
       mode: "tui",
@@ -107,7 +107,7 @@ test("a clean pi exit leaves nothing behind", async () => {
       await handler({ type: "session_start", reason: "startup" }, ctx);
     }
 
-    const file = path.join(localAppData, "trayclaw", "agents", `${process.pid}-abc-123.json`);
+    const file = path.join(localAppData, "piclaw", "agents", `${process.pid}-abc-123.json`);
     assert.equal(fs.existsSync(file), true);
     const written = JSON.parse(fs.readFileSync(file, "utf8"));
     assert.equal(written.state, "idle");
@@ -134,13 +134,13 @@ test("a clean pi exit leaves nothing behind", async () => {
 });
 
 test("a session that is not the root TUI session reports nothing", async () => {
-  const localAppData = fs.mkdtempSync(path.join(os.tmpdir(), "trayclaw-state-"));
+  const localAppData = fs.mkdtempSync(path.join(os.tmpdir(), "piclaw-state-"));
   const previous = process.env.LOCALAPPDATA;
   process.env.LOCALAPPDATA = localAppData;
 
   try {
     const handlers = new Map();
-    trayclaw({
+    piclaw({
       on(type, handler) {
         const list = handlers.get(type) ?? [];
         list.push(handler);
@@ -155,7 +155,7 @@ test("a session that is not the root TUI session reports nothing", async () => {
       );
     }
 
-    const directory = path.join(localAppData, "trayclaw", "agents");
+    const directory = path.join(localAppData, "piclaw", "agents");
     assert.equal(fs.existsSync(directory), false);
   } finally {
     if (previous === undefined) {

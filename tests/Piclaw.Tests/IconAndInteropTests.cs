@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-namespace Trayclaw.Tests;
+namespace Piclaw.Tests;
 
 public class IconPixelsTests
 {

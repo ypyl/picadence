@@ -652,19 +652,19 @@ Fill this in the first change, then keep it true. These are the only commands
 and names the agent may assume: a value that is missing is a question for the
 human, not a guess.
 
-- Product slug: trayclaw
-- Stack: C# .NET 10 with NativeAOT for the tray process, Win32 directly and no GUI toolkit; a pi extension in TypeScript writes agent state (next change)
+- Product slug: piclaw
+- Stack: C# .NET 10 with NativeAOT for the tray process, Win32 and GDI directly with no GUI toolkit; a pi extension in plain JavaScript reports agent state
 - Toolchain: .NET SDK 10.0.404 on win-x64; NuGet packages pinned by a committed packages.lock.json; NativeAOT needs the MSVC linker from Visual Studio Build Tools; xunit for tests
 - Trunk branch: main
 - Template: C:/Users/ypyl/projects/ai-first-template
 - Template revision: 82e4beb75f3ef1e1c71d55b5dce90b4967961afc
 - Template copied: 2026-11-20
-- Lint: dotnet format trayclaw.sln --verify-no-changes
-- Build: dotnet build trayclaw.sln -c Release
-- Test: dotnet test trayclaw.sln -c Release && node --test extensions/trayclaw.test.mjs
-- Run: dotnet run --project src/Trayclaw -c Release
+- Lint: dotnet format piclaw.sln --verify-no-changes
+- Build: dotnet build piclaw.sln -c Release
+- Test: dotnet test piclaw.sln -c Release && node --test extensions/piclaw.test.mjs
+- Run: dotnet run --project src/Piclaw -c Release
 - Secrets: none, and none planned: both halves exchange local files
-- Environments: one, this machine; agent state lives in %LOCALAPPDATA%/trayclaw and no server exists
+- Environments: one, this machine; agent state lives in %LOCALAPPDATA%/piclaw and no server exists
 - OpenSpec CLI: 2.1.0 (the only external tool; check `openspec --version`)
 - Versions: git tags `<product>-v<semver>`, cut at release. No version file.
 

@@ -2,7 +2,7 @@
 
 Last verified: 2026-11-20, after the `agent-status` change.
 
-trayclaw is a tray icon on Windows that reports what the pi coding agents in your
+piclaw is a tray icon on Windows that reports what the pi coding agents in your
 terminal tabs are doing. It reads agent state; it never drives pi.
 
 ## Context
@@ -11,7 +11,7 @@ terminal tabs are doing. It reads agent state; it never drives pi.
 flowchart LR
   user(["Person: You<br/>Windows 11, Windows Terminal"])
 
-  system["Software System: trayclaw<br/>agent status at the edge of the screen"]
+  system["Software System: piclaw<br/>agent status at the edge of the screen"]
 
   pi["External: pi sessions<br/>coding agents in terminal tabs"]
 
@@ -33,10 +33,10 @@ flowchart LR
 flowchart TB
   user(["Person: You"])
 
-  subgraph trayclaw["trayclaw"]
-    app["Trayclaw.exe<br/>C# .NET 10, NativeAOT<br/>tray icon, tooltip, menu, poll"]
-    ext["pi extension<br/>trayclaw.js, plain ESM<br/>reports one state per session"]
-    store[("state directory<br/>%LOCALAPPDATA%/trayclaw/agents<br/>one JSON file per session")]
+  subgraph piclaw["piclaw"]
+    app["Piclaw.exe<br/>C# .NET 10, NativeAOT<br/>tray icon, tooltip, menu, poll"]
+    ext["pi extension<br/>piclaw.js, plain ESM<br/>reports one state per session"]
+    store[("state directory<br/>%LOCALAPPDATA%/piclaw/agents<br/>one JSON file per session")]
   end
 
   pi["External: pi<br/>TUI session in a terminal tab"]
@@ -75,21 +75,21 @@ flowchart TB
 
 | Container | Responsibility | Path | Technology |
 |---|---|---|---|
-| Trayclaw.exe | tray icon, tooltip, the status panel, one-second poll, liveness, aggregation | `src/Trayclaw` | C# .NET 10, NativeAOT, Win32 and GDI through P/Invoke |
-| pi extension | maps pi's lifecycle events to one state per session and writes it | `extensions/trayclaw.js` | Node ESM, loaded by pi |
+| Piclaw.exe | tray icon, tooltip, the status panel, one-second poll, liveness, aggregation | `src/Piclaw` | C# .NET 10, NativeAOT, Win32 and GDI through P/Invoke |
+| pi extension | maps pi's lifecycle events to one state per session and writes it | `extensions/piclaw.js` | Node ESM, loaded by pi |
 
 ## Store
 
 | Store | Holds | Path | Lifetime |
 |---|---|---|---|
-| state directory | one JSON file per session: pid, session id, folder, name, model, state, detail, updated time | `%LOCALAPPDATA%/trayclaw/agents` | written on every transition, removed on clean exit or by the tray once the process is gone |
+| state directory | one JSON file per session: pid, session id, folder, name, model, state, detail, updated time | `%LOCALAPPDATA%/piclaw/agents` | written on every transition, removed on clean exit or by the tray once the process is gone |
 
 ## Open questions
 
 - Which terminal tab a session belongs to. Windows Terminal exposes no handle, so
   the menu shows the working folder and session name instead.
 - Whether a second agent host ever needs the same status. If so, the state
-  directory stops being private to trayclaw and the contract moves.
+  directory stops being private to piclaw and the contract moves.
 
 ## Decisions and behavior
 

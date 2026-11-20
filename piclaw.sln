@@ -5,11 +5,11 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Trayclaw", "src\Trayclaw\Trayclaw.csproj", "{380D0621-3E61-4012-B5DB-1565CA7438BD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Piclaw", "src\Piclaw\Piclaw.csproj", "{380D0621-3E61-4012-B5DB-1565CA7438BD}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Trayclaw.Tests", "tests\Trayclaw.Tests\Trayclaw.Tests.csproj", "{716DF6EF-EAC0-4A4D-87E8-D2051F80310E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Piclaw.Tests", "tests\Piclaw.Tests\Piclaw.Tests.csproj", "{716DF6EF-EAC0-4A4D-87E8-D2051F80310E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

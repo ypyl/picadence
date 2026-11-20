@@ -1,6 +1,6 @@
 // The palette and the contrast maths. The painter reads these constants and so
 // does the contrast test, so a colour that fails to read fails the build.
-namespace Trayclaw;
+namespace Piclaw;
 
 /// <summary>A colour with no dependency on a drawing library.</summary>
 public readonly record struct Rgb(byte Red, byte Green, byte Blue)

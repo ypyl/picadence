@@ -23,6 +23,9 @@ internal static class Panel
 
     public static bool IsOpen { get; private set; }
 
+    /// <summary>True while the pointer is over Quit, which is the only control.</summary>
+    private static bool _quitHovered;
+
     public static unsafe void Register(nint instance)
     {
         var windowClass = CreateWindowClass(
@@ -86,6 +89,7 @@ internal static class Panel
         }
 
         IsOpen = false;
+        _quitHovered = false;
     }
 
     private static void Show(IReadOnlyList<AgentSession> sessions, DateTimeOffset now, nint owner)
@@ -200,12 +204,66 @@ internal static class Panel
             case Native.WM_KEYDOWN when (int)wParam == Native.VK_ESCAPE:
                 Hide();
                 return 0;
+            case Native.WM_MOUSEMOVE:
+                Move((short)(lParam & 0xFFFF), (short)((lParam >> 16) & 0xFFFF));
+                return 0;
+            case Native.WM_MOUSELEAVE:
+                if (_quitHovered)
+                {
+                    _quitHovered = false;
+                    Native.InvalidateRect(hwnd, 0, false);
+                }
+
+                return 0;
+            case Native.WM_SETCURSOR when (int)(lParam & 0xFFFF) == Native.HTCLIENT:
+                Native.SetCursor(Cursor());
+                return 1;
             case Native.WM_LBUTTONUP:
                 Click((short)(lParam & 0xFFFF), (short)((lParam >> 16) & 0xFFFF));
                 return 0;
             default:
                 return Native.DefWindowProcW(hwnd, message, wParam, lParam);
         }
+    }
+
+    /// <summary>Hover tracking, so Quit looks clickable before it is clicked.</summary>
+    private static void Move(int x, int y)
+    {
+        var overQuit = _layout.HitTest(x / _scale, y / _scale) == PanelHit.Quit;
+        if (overQuit == _quitHovered)
+        {
+            return;
+        }
+
+        _quitHovered = overQuit;
+        Native.SetCursor(Cursor());
+
+        if (overQuit)
+        {
+            var tracking = new Native.TrackMouseEventData
+            {
+                cbSize = Marshal.SizeOf<Native.TrackMouseEventData>(),
+                flags = Native.TME_LEAVE,
+                hwndTrack = _window,
+            };
+            Native.TrackMouseEvent(ref tracking);
+        }
+
+        Native.InvalidateRect(_window, 0, false);
+    }
+
+    /// <summary>The pointer the point under the cursor asks for.</summary>
+    private static nint Cursor()
+    {
+        var overQuit = false;
+        if (Native.GetCursorPos(out var point) && Native.ScreenToClient(_window, ref point))
+        {
+            overQuit = _layout.HitTest(point.x / _scale, point.y / _scale) == PanelHit.Quit;
+        }
+
+        return PanelCursor.For(overQuit ? PanelHit.Quit : PanelHit.None) == PanelPointer.Hand
+            ? Native.LoadCursorW(0, Native.IDC_HAND)
+            : Native.LoadCursorW(0, Native.IDC_ARROW);
     }
 
     private static void Click(int x, int y)
@@ -320,8 +378,19 @@ internal static class Panel
                 PanelTheme.SecondaryText, Native.DT_LEFT | Native.DT_SINGLELINE);
         }
 
+        if (_quitHovered)
+        {
+            var quit = Scaled(inset(_layout.QuitBounds, 2));
+            var previousPen = Native.SelectObject(dc, Native.GetStockObject(Native.NULL_PEN));
+            var previousBrush = Native.SelectObject(dc, Brush(PanelTheme.Hover));
+            var radius = (int)Math.Round(4 * _scale);
+            Native.RoundRect(dc, quit.left, quit.top, quit.right, quit.bottom, radius, radius);
+            Native.SelectObject(dc, previousBrush);
+            Native.SelectObject(dc, previousPen);
+        }
+
         Text(dc, "Quit", _layout.QuitBounds, 12, Native.FW_NORMAL, PanelTheme.PrimaryText,
-            Native.DT_RIGHT | Native.DT_VCENTER | Native.DT_SINGLELINE);
+            Native.DT_CENTER | Native.DT_VCENTER | Native.DT_SINGLELINE);
 
     }
 
@@ -334,6 +403,9 @@ internal static class Panel
         Native.DrawTextW(dc, text, text.Length, ref rect, flags | Native.DT_NOPREFIX);
         Native.SelectObject(dc, previous);
     }
+
+    private static DipRect inset(DipRect bounds, double by) =>
+        new(bounds.X + by, bounds.Y + by, bounds.Width - (2 * by), bounds.Height - (2 * by));
 
     private static Native.Rect Scaled(DipRect bounds) => new()
     {

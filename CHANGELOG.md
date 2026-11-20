@@ -5,6 +5,8 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- Quit now looks like a button: hovering it paints a highlight and turns the
+  pointer into a hand.
 - The age in a session row no longer touches the edge of its box, so it stops
   looking clipped.
 - The panel no longer shows the busy pointer while you hover it. It was the

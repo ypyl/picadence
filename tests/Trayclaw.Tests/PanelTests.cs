@@ -222,6 +222,34 @@ public class PanelPlacementTests
     }
 }
 
+public class PanelHoverTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 11, 20, 21, 0, 0, TimeSpan.Zero);
+
+    private static AgentSession Session(int pid) =>
+        new(new SessionRef(pid, $"session-{pid}"), "trayclaw", null, null, AgentState.Working, null, Now);
+
+    [Fact]
+    public void The_quit_button_offers_a_hand_and_a_row_does_not()
+    {
+        var layout = PanelModel.Build([Session(1)], Now);
+        var quit = layout.QuitBounds;
+        var row = layout.Rows[0].Bounds;
+
+        Assert.Equal(PanelHit.Quit, layout.HitTest(quit.X + 4, quit.Y + 4));
+        Assert.Equal(PanelPointer.Hand, PanelCursor.For(PanelHit.Quit));
+        Assert.Equal(PanelPointer.Arrow, PanelCursor.For(layout.HitTest(row.X + 4, row.Y + 4)));
+        Assert.Equal(PanelPointer.Arrow, PanelCursor.For(PanelHit.None));
+    }
+
+    [Fact]
+    public void The_hover_surface_is_not_the_surface_it_sits_on()
+    {
+        Assert.NotEqual(PanelTheme.Surface, PanelTheme.Hover);
+        Assert.NotEqual(PanelTheme.Row, PanelTheme.Hover);
+    }
+}
+
 public class PanelWindowClassTests
 {
     [Fact]

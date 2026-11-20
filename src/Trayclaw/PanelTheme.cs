@@ -19,6 +19,7 @@ public static class PanelTheme
     public static readonly Rgb Surface = Rgb.FromHex("#202020");
     public static readonly Rgb Row = Rgb.FromHex("#2B2B2B");
     public static readonly Rgb Outline = Rgb.FromHex("#3A3A3A");
+    public static readonly Rgb Hover = Rgb.FromHex("#3A3A3A");
     public static readonly Rgb PrimaryText = Rgb.FromHex("#FFFFFF");
     public static readonly Rgb SecondaryText = Rgb.FromHex("#C5C5C5");
 
@@ -63,5 +64,6 @@ public static class PanelTheme
         yield return (PrimaryText, Row);
         yield return (SecondaryText, Surface);
         yield return (SecondaryText, Row);
+        yield return (PrimaryText, Hover);
     }
 }

@@ -12,7 +12,7 @@ internal static class Panel
 
     private static nint _window;
     private static nint _owner;
-    private static PanelLayout _layout = PanelModel.Build([], DateTimeOffset.UtcNow);
+    private static PanelLayout _layout = PanelModel.Build([], DateTimeOffset.UtcNow, false);
     /// <summary>The scale the window is sized with, from its monitor's DPI.</summary>
     private static float _dpiScale = 1f;
 
@@ -23,8 +23,14 @@ internal static class Panel
 
     public static bool IsOpen { get; private set; }
 
-    /// <summary>True while the pointer is over Quit, which is the only control.</summary>
-    private static bool _quitHovered;
+    /// <summary>The control under the pointer, or null.</summary>
+    private static PanelAction? _hovered;
+
+    /// <summary>Whether the tray is registered to start with Windows.</summary>
+    private static bool _autostartOn;
+
+    /// <summary>The last sessions read, so a toggle can repaint without the store.</summary>
+    private static IReadOnlyList<AgentSession> _sessions = [];
 
     public static unsafe void Register(nint instance)
     {
@@ -69,7 +75,8 @@ internal static class Panel
             return;
         }
 
-        var next = PanelModel.Build(sessions, now);
+        _sessions = sessions;
+        var next = PanelModel.Build(sessions, now, _autostartOn);
         var grew = Math.Abs(next.Height - _layout.Height) > 0.5 || Math.Abs(next.Width - _layout.Width) > 0.5;
         _layout = next;
 
@@ -89,13 +96,15 @@ internal static class Panel
         }
 
         IsOpen = false;
-        _quitHovered = false;
+        _hovered = null;
     }
 
     private static void Show(IReadOnlyList<AgentSession> sessions, DateTimeOffset now, nint owner)
     {
         _owner = owner;
-        _layout = PanelModel.Build(sessions, now);
+        _sessions = sessions;
+        _autostartOn = Autostart.Read() is not null;
+        _layout = PanelModel.Build(sessions, now, _autostartOn);
 
         if (_window == 0)
         {
@@ -208,9 +217,9 @@ internal static class Panel
                 Move((short)(lParam & 0xFFFF), (short)((lParam >> 16) & 0xFFFF));
                 return 0;
             case Native.WM_MOUSELEAVE:
-                if (_quitHovered)
+                if (_hovered is not null)
                 {
-                    _quitHovered = false;
+                    _hovered = null;
                     Native.InvalidateRect(hwnd, 0, false);
                 }
 
@@ -226,19 +235,26 @@ internal static class Panel
         }
     }
 
-    /// <summary>Hover tracking, so Quit looks clickable before it is clicked.</summary>
+    /// <summary>Hover tracking, so a control looks clickable before it is clicked.</summary>
     private static void Move(int x, int y)
     {
-        var overQuit = _layout.HitTest(x / _scale, y / _scale) == PanelHit.Quit;
-        if (overQuit == _quitHovered)
+        var hit = _layout.HitTest(x / _scale, y / _scale);
+        PanelAction? over = hit switch
+        {
+            PanelHit.Autostart => PanelAction.Autostart,
+            PanelHit.Quit => PanelAction.Quit,
+            _ => null,
+        };
+
+        if (over == _hovered)
         {
             return;
         }
 
-        _quitHovered = overQuit;
+        _hovered = over;
         Native.SetCursor(Cursor());
 
-        if (overQuit)
+        if (over is not null)
         {
             var tracking = new Native.TrackMouseEventData
             {
@@ -255,24 +271,41 @@ internal static class Panel
     /// <summary>The pointer the point under the cursor asks for.</summary>
     private static nint Cursor()
     {
-        var overQuit = false;
+        var hit = PanelHit.None;
         if (Native.GetCursorPos(out var point) && Native.ScreenToClient(_window, ref point))
         {
-            overQuit = _layout.HitTest(point.x / _scale, point.y / _scale) == PanelHit.Quit;
+            hit = _layout.HitTest(point.x / _scale, point.y / _scale);
         }
 
-        return PanelCursor.For(overQuit ? PanelHit.Quit : PanelHit.None) == PanelPointer.Hand
+        return PanelCursor.For(hit) == PanelPointer.Hand
             ? Native.LoadCursorW(0, Native.IDC_HAND)
             : Native.LoadCursorW(0, Native.IDC_ARROW);
     }
 
     private static void Click(int x, int y)
     {
-        // A row and empty space both do nothing: the panel reports, it does not act.
-        if (_layout.HitTest(x / _scale, y / _scale) == PanelHit.Quit)
+        // A session row and empty space both do nothing: the panel reports, it
+        // does not act on a session.
+        switch (_layout.HitTest(x / _scale, y / _scale))
         {
-            Hide();
-            Native.PostMessage(_owner, Native.WM_CLOSE, 0, 0);
+            case PanelHit.Quit:
+                Hide();
+                Native.PostMessage(_owner, Native.WM_CLOSE, 0, 0);
+                break;
+            case PanelHit.Autostart:
+                _autostartOn = Autostart.Toggle(_autostartOn);
+                if (_autostartOn)
+                {
+                    Autostart.Write(Environment.ProcessPath ?? string.Empty);
+                }
+                else
+                {
+                    Autostart.Remove();
+                }
+
+                _layout = PanelModel.Build(_sessions, DateTimeOffset.UtcNow, _autostartOn);
+                Native.InvalidateRect(_window, 0, false);
+                break;
         }
     }
 
@@ -378,20 +411,33 @@ internal static class Panel
                 PanelTheme.SecondaryText, Native.DT_LEFT | Native.DT_SINGLELINE);
         }
 
-        if (_quitHovered)
+        foreach (var action in _layout.Actions)
         {
-            var quit = Scaled(inset(_layout.QuitBounds, 2));
-            var previousPen = Native.SelectObject(dc, Native.GetStockObject(Native.NULL_PEN));
-            var previousBrush = Native.SelectObject(dc, Brush(PanelTheme.Hover));
-            var radius = (int)Math.Round(4 * _scale);
-            Native.RoundRect(dc, quit.left, quit.top, quit.right, quit.bottom, radius, radius);
-            Native.SelectObject(dc, previousBrush);
-            Native.SelectObject(dc, previousPen);
+            if (_hovered == action.Action)
+            {
+                var box = Scaled(inset(action.Bounds, 2));
+                var previousPen = Native.SelectObject(dc, Native.GetStockObject(Native.NULL_PEN));
+                var previousBrush = Native.SelectObject(dc, Brush(PanelTheme.Hover));
+                var radius = (int)Math.Round(4 * _scale);
+                Native.RoundRect(dc, box.left, box.top, box.right, box.bottom, radius, radius);
+                Native.SelectObject(dc, previousBrush);
+                Native.SelectObject(dc, previousPen);
+            }
+
+            Text(dc, action.Label, action.Bounds, 12, Native.FW_NORMAL, PanelTheme.PrimaryText,
+                Native.DT_LEFT | Native.DT_VCENTER | Native.DT_SINGLELINE);
+
+            if (action.Value.Length > 0)
+            {
+                var value = new DipRect(
+                    action.Bounds.X + action.Bounds.Width - 60,
+                    action.Bounds.Y,
+                    60 - PanelModel.RowPadding,
+                    action.Bounds.Height);
+                Text(dc, action.Value, value, 12, Native.FW_NORMAL, PanelTheme.SecondaryText,
+                    Native.DT_RIGHT | Native.DT_VCENTER | Native.DT_SINGLELINE);
+            }
         }
-
-        Text(dc, "Quit", _layout.QuitBounds, 12, Native.FW_NORMAL, PanelTheme.PrimaryText,
-            Native.DT_CENTER | Native.DT_VCENTER | Native.DT_SINGLELINE);
-
     }
 
     private static void Text(nint dc, string text, DipRect bounds, int size, int weight, Rgb colour, int flags)

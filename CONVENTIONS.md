@@ -27,6 +27,12 @@ A size in the panel is written in device-independent pixels and scaled once, at
 paint time, by the scale the window actually got. Trigger: a magic pixel number
 in a paint call.
 
+## The registry
+
+The app writes one value, under `HKEY_CURRENT_USER`, and never asks for
+elevation. Anything that would need `HKEY_LOCAL_MACHINE` is a different decision
+and a different change. Trigger: a call that opens a key outside the user's hive.
+
 ## The pi side
 
 `extensions/piclaw.js` is plain ESM with no build step, because pi loads it

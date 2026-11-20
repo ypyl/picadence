@@ -23,6 +23,14 @@ state's colour), and Quit. It closes when it loses focus or on Escape, and it
 keeps up while it is open. A row does nothing: piclaw never sends input to a
 session.
 
+## Start with Windows
+
+Open the panel and click **Start with Windows**; it reads `on`, and Windows
+starts piclaw when you sign in. Click it again to stop. It writes one value under
+your own user's `Run` key (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`),
+needs no administrator, and if piclaw later runs from another path it corrects
+that entry itself.
+
 ## Install the pi side
 
 The tray is half the product. The other half runs inside pi and reports state.

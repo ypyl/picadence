@@ -23,7 +23,8 @@ public class PanelModelTests
                 Session(1, AgentState.Working, secondsAgo: 120, folder: "older"),
                 Session(2, AgentState.Blocked, secondsAgo: 5, folder: "newer", detail: "Confirm"),
             ],
-            Now);
+            Now,
+            false);
 
         Assert.Equal(2, layout.Rows.Count);
         Assert.Equal("newer", layout.Rows[0].Folder);
@@ -42,7 +43,7 @@ public class PanelModelTests
     {
         foreach (var state in Enum.GetValues<AgentState>())
         {
-            var layout = PanelModel.Build([Session(1, state)], Now);
+            var layout = PanelModel.Build([Session(1, state)], Now, false);
             Assert.Equal(state.Describe(), layout.Rows[0].StateWord);
             Assert.Equal(PanelTheme.State(state), PanelTheme.State(layout.Rows[0].State));
         }
@@ -51,34 +52,33 @@ public class PanelModelTests
     [Fact(DisplayName = "a session row takes no action")]
     public void A_session_row_takes_no_action()
     {
-        var layout = PanelModel.Build([Session(1, AgentState.Working)], Now);
+        var layout = PanelModel.Build([Session(1, AgentState.Working)], Now, false);
         var row = layout.Rows[0].Bounds;
 
         Assert.Equal(PanelHit.Row, layout.HitTest(row.X + 4, row.Y + 4));
         Assert.Equal(PanelHit.None, layout.HitTest(4, 4));
-        Assert.Equal(PanelHit.Quit, layout.HitTest(
-            layout.QuitBounds.X + 2, layout.QuitBounds.Y + 2));
+        var quit = layout.Actions.Single(action => action.Action == PanelAction.Quit).Bounds;
+        Assert.Equal(PanelHit.Quit, layout.HitTest(quit.X + 2, quit.Y + 2));
         Assert.True(PanelController.After(true, PanelInput.RowClicked));
     }
 
     [Fact(DisplayName = "an empty panel says nothing is running")]
     public void An_empty_panel_says_nothing_is_running()
     {
-        var layout = PanelModel.Build([], Now);
+        var layout = PanelModel.Build([], Now, false);
 
         Assert.Empty(layout.Rows);
         Assert.Equal("No sessions are running", layout.EmptyText);
         Assert.False(string.IsNullOrEmpty(layout.EmptyHint));
-        Assert.True(layout.QuitBounds.Width > 0, "Quit is still there");
-        Assert.Equal(PanelHit.Quit, layout.HitTest(
-            layout.QuitBounds.X + 2, layout.QuitBounds.Y + 2));
+        var quit = layout.Actions.Single(action => action.Action == PanelAction.Quit).Bounds;
+        Assert.Equal(PanelHit.Quit, layout.HitTest(quit.X + 2, quit.Y + 2));
     }
 
     [Fact(DisplayName = "the panel updates while it stays open")]
     public void The_panel_updates_while_it_stays_open()
     {
-        var before = PanelModel.Build([Session(1, AgentState.Working)], Now);
-        var after = PanelModel.Build([Session(1, AgentState.Blocked)], Now.AddSeconds(3));
+        var before = PanelModel.Build([Session(1, AgentState.Working)], Now, false);
+        var after = PanelModel.Build([Session(1, AgentState.Blocked)], Now.AddSeconds(3), false);
 
         Assert.Equal("working", before.Rows[0].StateWord);
         Assert.Equal("waiting", after.Rows[0].StateWord);
@@ -92,7 +92,7 @@ public class PanelModelTests
             .Select(pid => Session(pid, AgentState.Working, secondsAgo: pid))
             .ToList();
 
-        var layout = PanelModel.Build(sessions, Now);
+        var layout = PanelModel.Build(sessions, Now, false);
 
         Assert.Equal(PanelModel.MaxRows, layout.Rows.Count);
         Assert.Equal("+4 more", layout.MoreText);
@@ -107,7 +107,8 @@ public class PanelModelTests
                 Session(2, AgentState.Blocked, secondsAgo: 90, detail: "Confirm"),
                 Session(3, AgentState.Error, secondsAgo: 7200),
             ],
-            Now);
+            Now,
+            false);
 
         Assert.All(layout.Rows, row =>
         {
@@ -126,17 +127,18 @@ public class PanelModelTests
                 Session(2, AgentState.Working),
                 Session(3, AgentState.Blocked),
             ],
-            Now);
+            Now,
+            false);
 
         Assert.Equal("1 waiting, 2 working", layout.Summary);
-        Assert.Equal("nothing running", PanelModel.Build([], Now).Summary);
+        Assert.Equal("nothing running", PanelModel.Build([], Now, false).Summary);
     }
 
     [Fact]
     public void Rows_do_not_overlap_and_the_panel_grows_with_them()
     {
-        var one = PanelModel.Build([Session(1, AgentState.Working)], Now);
-        var two = PanelModel.Build([Session(1, AgentState.Working), Session(2, AgentState.Idle, secondsAgo: 1)], Now);
+        var one = PanelModel.Build([Session(1, AgentState.Working)], Now, false);
+        var two = PanelModel.Build([Session(1, AgentState.Working), Session(2, AgentState.Idle, secondsAgo: 1)], Now, false);
 
         Assert.True(two.Height > one.Height);
         for (var i = 1; i < two.Rows.Count; i++)
@@ -144,7 +146,7 @@ public class PanelModelTests
             Assert.True(two.Rows[i].Bounds.Y >= two.Rows[i - 1].Bounds.Y + two.Rows[i - 1].Bounds.Height);
         }
 
-        Assert.True(two.QuitBounds.Y >= two.Rows[^1].Bounds.Y + two.Rows[^1].Bounds.Height);
+        Assert.True(two.Actions[0].Bounds.Y >= two.Rows[^1].Bounds.Y + two.Rows[^1].Bounds.Height);
         Assert.True(
             two.Rows[0].Bounds.Y >= two.HeaderBounds.Y + two.HeaderBounds.Height,
             "the first row starts below the header");
@@ -232,11 +234,14 @@ public class PanelHoverTests
     [Fact]
     public void The_quit_button_offers_a_hand_and_a_row_does_not()
     {
-        var layout = PanelModel.Build([Session(1)], Now);
-        var quit = layout.QuitBounds;
+        var layout = PanelModel.Build([Session(1)], Now, false);
+        var quit = layout.Actions.Single(action => action.Action == PanelAction.Quit).Bounds;
+        var autostart = layout.Actions.Single(action => action.Action == PanelAction.Autostart).Bounds;
         var row = layout.Rows[0].Bounds;
 
         Assert.Equal(PanelHit.Quit, layout.HitTest(quit.X + 4, quit.Y + 4));
+        Assert.Equal(PanelHit.Autostart, layout.HitTest(autostart.X + 4, autostart.Y + 4));
+        Assert.Equal(PanelPointer.Hand, PanelCursor.For(PanelHit.Autostart));
         Assert.Equal(PanelPointer.Hand, PanelCursor.For(PanelHit.Quit));
         Assert.Equal(PanelPointer.Arrow, PanelCursor.For(layout.HitTest(row.X + 4, row.Y + 4)));
         Assert.Equal(PanelPointer.Arrow, PanelCursor.For(PanelHit.None));

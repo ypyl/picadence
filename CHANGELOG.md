@@ -5,6 +5,8 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- The age in a session row no longer touches the edge of its box, so it stops
+  looking clipped.
 - The panel no longer shows the busy pointer while you hover it. It was the
   Windows "app starting" arrow, because the panel's window never named a cursor.
 - The status moved from a plain Windows menu into a panel: click the icon and a

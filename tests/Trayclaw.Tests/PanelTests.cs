@@ -99,6 +99,25 @@ public class PanelModelTests
     }
 
     [Fact]
+    public void The_age_keeps_a_margin_from_the_row_edge()
+    {
+        var layout = PanelModel.Build(
+            [
+                Session(1, AgentState.Working, secondsAgo: 1),
+                Session(2, AgentState.Blocked, secondsAgo: 90, detail: "Confirm"),
+                Session(3, AgentState.Error, secondsAgo: 7200),
+            ],
+            Now);
+
+        Assert.All(layout.Rows, row =>
+        {
+            var margin = (row.Bounds.X + row.Bounds.Width) - (row.AgeBounds.X + row.AgeBounds.Width);
+            Assert.True(margin >= 8, $"the age is {margin} DIPs from the row edge");
+            Assert.True(row.AgeBounds.X > row.Bounds.X);
+        });
+    }
+
+    [Fact]
     public void The_header_summarises_the_sessions()
     {
         var layout = PanelModel.Build(

@@ -21,6 +21,7 @@ public enum PanelHit
 
 public sealed record PanelRow(
     DipRect Bounds,
+    DipRect AgeBounds,
     AgentState State,
     string Folder,
     string StateWord,
@@ -63,6 +64,8 @@ public static class PanelModel
     public const double RowSpacing = 8;
     public const double FooterHeight = 40;
     public const double QuitWidth = 60;
+    public const double RowPadding = 12;
+    public const double AgeWidth = 44;
     public const int MaxRows = 8;
 
     /// <summary>
@@ -87,8 +90,14 @@ public static class PanelModel
         foreach (var session in shown)
         {
             y += RowSpacing;
+            var bounds = new DipRect(Padding, y, inner, RowHeight);
             rows.Add(new PanelRow(
-                new DipRect(Padding, y, inner, RowHeight),
+                bounds,
+                new DipRect(
+                    bounds.X + bounds.Width - RowPadding - AgeWidth,
+                    bounds.Y + 15,
+                    AgeWidth,
+                    16),
                 session.State,
                 session.Folder,
                 session.State.Describe(),

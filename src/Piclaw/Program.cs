@@ -6,7 +6,7 @@
 // file only turns their answers into Win32 calls.
 using System.Runtime.InteropServices;
 
-namespace Trayclaw;
+namespace Piclaw;
 
 internal static class Program
 {
@@ -19,7 +19,7 @@ internal static class Program
     private static readonly Dictionary<AgentState, nint> Icons = [];
     private static readonly string StateDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "trayclaw",
+        "piclaw",
         "agents");
     private static readonly SessionStore Store = new(StateDirectory, IsProcessAlive);
 
@@ -117,7 +117,7 @@ internal static class Program
             cbSize = Marshal.SizeOf<Native.WindowClassEx>(),
             lpfnWndProc = (nint)(delegate* unmanaged<nint, int, nint, nint, nint>)&WindowProc,
             hInstance = instance,
-            lpszClassName = "TrayclawWindow",
+            lpszClassName = "PiclawWindow",
         };
 
         if (Native.RegisterClassExW(ref windowClass) == 0)
@@ -128,14 +128,14 @@ internal static class Program
         Panel.Register(instance);
 
         _window = Native.CreateWindowExW(
-            0, windowClass.lpszClassName, "trayclaw", Native.WS_POPUP,
+            0, windowClass.lpszClassName, "piclaw", Native.WS_POPUP,
             0, 0, 0, 0, 0, 0, instance, 0);
         if (_window == 0)
         {
             return 1;
         }
 
-        _shownTooltip = "trayclaw - no agent sessions";
+        _shownTooltip = "piclaw - no agent sessions";
         _icon = new Native.NotifyIconData
         {
             cbSize = Marshal.SizeOf<Native.NotifyIconData>(),

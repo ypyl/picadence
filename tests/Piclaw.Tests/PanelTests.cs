@@ -1,11 +1,11 @@
-namespace Trayclaw.Tests;
+namespace Piclaw.Tests;
 
 public class PanelModelTests
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 20, 21, 0, 0, TimeSpan.Zero);
 
     private static AgentSession Session(
-        int pid, AgentState state, int secondsAgo = 0, string folder = "trayclaw", string? detail = null) =>
+        int pid, AgentState state, int secondsAgo = 0, string folder = "piclaw", string? detail = null) =>
         new(
             new SessionRef(pid, $"session-{pid}"),
             folder,
@@ -227,7 +227,7 @@ public class PanelHoverTests
     private static readonly DateTimeOffset Now = new(2026, 11, 20, 21, 0, 0, TimeSpan.Zero);
 
     private static AgentSession Session(int pid) =>
-        new(new SessionRef(pid, $"session-{pid}"), "trayclaw", null, null, AgentState.Working, null, Now);
+        new(new SessionRef(pid, $"session-{pid}"), "piclaw", null, null, AgentState.Working, null, Now);
 
     [Fact]
     public void The_quit_button_offers_a_hand_and_a_row_does_not()
@@ -259,7 +259,7 @@ public class PanelWindowClassTests
 
         Assert.NotEqual(0, windowClass.hCursor);
         Assert.Equal(Native.LoadCursorW(0, Native.IDC_ARROW), windowClass.hCursor);
-        Assert.Equal("TrayclawPanel", windowClass.lpszClassName);
+        Assert.Equal("PiclawPanel", windowClass.lpszClassName);
     }
 }
 

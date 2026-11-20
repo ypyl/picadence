@@ -3,7 +3,7 @@
 // and nothing more: no shell execution, no network, no process launch.
 using System.Runtime.InteropServices;
 
-namespace Trayclaw;
+namespace Piclaw;
 
 internal static class Native
 {

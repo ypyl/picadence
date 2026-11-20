@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Trayclaw\Trayclaw.csproj" />
+    <ProjectReference Include="..\..\src\Piclaw\Piclaw.csproj" />
   </ItemGroup>
 
 </Project>

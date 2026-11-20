@@ -1,6 +1,6 @@
 // Reports one pi session's state to the tray.
 //
-// The tray reads a small JSON file per session from %LOCALAPPDATA%\trayclaw. This
+// The tray reads a small JSON file per session from %LOCALAPPDATA%\piclaw. This
 // file is the writer half of that contract, and it is plain ESM so the same file
 // can be tested with `node --test extensions`.
 //
@@ -23,10 +23,10 @@ export function isPlainSessionId(value) {
 
 export function fileNameFor(pid, sessionId) {
   if (!Number.isInteger(pid) || pid <= 0) {
-    throw new Error(`trayclaw: process id must be a positive integer, got ${pid}`);
+    throw new Error(`piclaw: process id must be a positive integer, got ${pid}`);
   }
   if (!isPlainSessionId(sessionId)) {
-    throw new Error(`trayclaw: session id is not a plain stem: ${JSON.stringify(sessionId)}`);
+    throw new Error(`piclaw: session id is not a plain stem: ${JSON.stringify(sessionId)}`);
   }
   return `${pid}-${sessionId}.json`;
 }
@@ -37,7 +37,7 @@ export function stateDirectory(env = process.env) {
   if (!base) {
     return undefined;
   }
-  return path.join(base, "trayclaw", "agents");
+  return path.join(base, "piclaw", "agents");
 }
 
 export function initialState() {
@@ -112,7 +112,7 @@ function describe(ctx) {
   return { cwd, folder: path.basename(cwd), name, model };
 }
 
-export default function trayclaw(pi) {
+export default function piclaw(pi) {
   const directory = stateDirectory();
   if (!directory) {
     return;

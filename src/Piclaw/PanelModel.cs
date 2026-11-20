@@ -3,7 +3,7 @@
 // landed on. None of it touches Windows.
 using System.Globalization;
 
-namespace Trayclaw;
+namespace Piclaw;
 
 /// <summary>A rectangle in DIPs, top-left origin.</summary>
 public readonly record struct DipRect(double X, double Y, double Width, double Height)
@@ -137,7 +137,7 @@ public static class PanelModel
             Width = Width,
             Height = y,
             HeaderBounds = header,
-            Title = "trayclaw",
+            Title = "piclaw",
             Summary = Summary(counts, sessions.Count),
             EmptyText = empty ? "No sessions are running" : null,
             EmptyHint = empty ? "Start pi to see it here" : null,

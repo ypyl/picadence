@@ -1,4 +1,4 @@
-namespace Trayclaw;
+namespace Piclaw;
 
 /// <summary>
 /// The states a session can be in. The names match the ones pi reports to the

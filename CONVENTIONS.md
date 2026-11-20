@@ -6,7 +6,7 @@ with no trigger is ignored. The ownership rule and how to add one are in
 
 ## Formatting and naming
 
-`dotnet format trayclaw.sln --verify-no-changes` decides formatting, and
+`dotnet format piclaw.sln --verify-no-changes` decides formatting, and
 `.editorconfig` is the only place its settings change. Trigger: a build that
 rewrites a file nobody edited.
 
@@ -29,7 +29,7 @@ in a paint call.
 
 ## The pi side
 
-`extensions/trayclaw.js` is plain ESM with no build step, because pi loads it
+`extensions/piclaw.js` is plain ESM with no build step, because pi loads it
 directly and `node --test` has to import the same file. Trigger: an import that
 needs compiling.
 

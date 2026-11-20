@@ -3,11 +3,11 @@
 // here is arithmetic and Win32 and nothing else.
 using System.Runtime.InteropServices;
 
-namespace Trayclaw;
+namespace Piclaw;
 
 internal static class Panel
 {
-    private const string ClassName = "TrayclawPanel";
+    private const string ClassName = "PiclawPanel";
     private const int PanelIconId = 1;
 
     private static nint _window;
@@ -100,7 +100,7 @@ internal static class Panel
         if (_window == 0)
         {
             _window = Native.CreateWindowExW(
-                Native.WS_EX_TOOLWINDOW, ClassName, "trayclaw status", Native.WS_POPUP,
+                Native.WS_EX_TOOLWINDOW, ClassName, "piclaw status", Native.WS_POPUP,
                 0, 0, 1, 1, 0, 0, Native.GetModuleHandleW(null), 0);
             if (_window == 0)
             {

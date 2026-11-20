@@ -5,7 +5,7 @@
 // name would let them overwrite each other.
 using System.Globalization;
 
-namespace Trayclaw;
+namespace Piclaw;
 
 /// <summary>One agent session, identified by the pi process and its session id.</summary>
 public readonly record struct SessionRef(int Pid, string SessionId)

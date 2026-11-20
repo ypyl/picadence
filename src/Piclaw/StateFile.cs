@@ -3,7 +3,7 @@
 // one bad file cannot take the tray down or invent a row.
 using System.Text.Json;
 
-namespace Trayclaw;
+namespace Piclaw;
 
 public static class StateFile
 {

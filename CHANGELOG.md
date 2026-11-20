@@ -5,6 +5,8 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- The product is called piclaw. Same tray, same panel, new name: the exe, the pi
+  extension, and the state folder follow it.
 - Quit now looks like a button: hovering it paints a highlight and turns the
   pointer into a hand.
 - The age in a session row no longer touches the edge of its box, so it stops
@@ -19,4 +21,4 @@ are in `AGENTS.md` under **Versions and changelog**.
   for a session waiting on you, green for work in progress, grey when nothing
   needs you. The tooltip counts sessions by state, and the menu lists each one
   with its folder, its state, and how long ago it changed.
-- trayclaw starts: the project, its stack, and its tests.
+- piclaw starts: the project, its stack, and its tests.

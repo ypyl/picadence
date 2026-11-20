@@ -1,4 +1,4 @@
-namespace Trayclaw.Tests;
+namespace Piclaw.Tests;
 
 public class StateFileTests
 {
@@ -12,8 +12,8 @@ public class StateFileTests
         {
           "pid": 1234,
           "sessionId": "abc-123",
-          "folder": "trayclaw",
-          "cwd": "C:\\Users\\ypyl\\projects\\trayclaw",
+          "folder": "piclaw",
+          "cwd": "C:\\Users\\ypyl\\projects\\piclaw",
           "name": "bootstrap",
           "model": "opencode-go/deepseek",
           "state": "blocked",
@@ -24,7 +24,7 @@ public class StateFileTests
 
         Assert.True(StateFile.TryRead(json, Reference, Now, out var session));
         Assert.Equal(AgentState.Blocked, session.State);
-        Assert.Equal("trayclaw", session.Folder);
+        Assert.Equal("piclaw", session.Folder);
         Assert.Equal("bootstrap", session.Name);
         Assert.Equal("Confirm", session.Detail);
         Assert.Equal(2026, session.UpdatedAt.Year);
@@ -42,10 +42,10 @@ public class StateFileTests
     [Fact]
     public void A_folder_is_derived_from_the_working_directory_when_missing()
     {
-        const string json = """{"state":"idle","cwd":"C:\\Users\\ypyl\\projects\\trayclaw"}""";
+        const string json = """{"state":"idle","cwd":"C:\\Users\\ypyl\\projects\\piclaw"}""";
 
         Assert.True(StateFile.TryRead(json, Reference, Now, out var session));
-        Assert.Equal("trayclaw", session.Folder);
+        Assert.Equal("piclaw", session.Folder);
     }
 
     [Theory]

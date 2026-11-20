@@ -5,6 +5,8 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- The panel no longer shows the busy pointer while you hover it. It was the
+  Windows "app starting" arrow, because the panel's window never named a cursor.
 - The status moved from a plain Windows menu into a panel: click the icon and a
   dark flyout opens with a summary line, one row per session with its colour,
   folder, state and how long ago it changed, and Quit. It follows the icon,

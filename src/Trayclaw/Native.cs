@@ -37,6 +37,7 @@ internal static class Native
     internal const int FW_NORMAL = 400;
     internal const int FW_SEMIBOLD = 600;
     internal const int DefaultDpi = 96;
+    internal const int IDC_ARROW = 32512;
     internal const int SRCCOPY = 0x00CC0020;
     internal const int MONITOR_DEFAULTTONEAREST = 2;
     internal const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
@@ -179,6 +180,9 @@ internal static class Native
 
     [DllImport("user32.dll")]
     internal static extern bool SetForegroundWindow(nint hwnd);
+
+    [DllImport("user32.dll")]
+    internal static extern nint LoadCursorW(nint instance, nint name);
 
     [DllImport("user32.dll")]
     internal static extern bool GetCursorPos(out Point point);

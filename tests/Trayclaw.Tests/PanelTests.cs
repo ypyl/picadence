@@ -203,6 +203,19 @@ public class PanelPlacementTests
     }
 }
 
+public class PanelWindowClassTests
+{
+    [Fact]
+    public void The_panel_class_names_the_arrow_cursor()
+    {
+        var windowClass = Panel.CreateWindowClass(0, 0);
+
+        Assert.NotEqual(0, windowClass.hCursor);
+        Assert.Equal(Native.LoadCursorW(0, Native.IDC_ARROW), windowClass.hCursor);
+        Assert.Equal("TrayclawPanel", windowClass.lpszClassName);
+    }
+}
+
 public class PanelThemeTests
 {
     [Fact(DisplayName = "the text keeps its contrast")]

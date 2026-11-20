@@ -25,17 +25,25 @@ internal static class Panel
 
     public static unsafe void Register(nint instance)
     {
-        var windowClass = new Native.WindowClassEx
-        {
-            cbSize = Marshal.SizeOf<Native.WindowClassEx>(),
-            style = 0x0002 | 0x0001 | Native.CS_DROPSHADOW,
-            lpfnWndProc = (nint)(delegate* unmanaged<nint, int, nint, nint, nint>)&WindowProc,
-            hInstance = instance,
-            lpszClassName = ClassName,
-        };
-
+        var windowClass = CreateWindowClass(
+            instance, (nint)(delegate* unmanaged<nint, int, nint, nint, nint>)&WindowProc);
         Native.RegisterClassExW(ref windowClass);
     }
+
+    /// <summary>
+    /// The class the panel is created from. It names the arrow cursor, because a
+    /// class that names none keeps whatever pointer Windows had last, which is how
+    /// the panel ended up showing the busy indicator.
+    /// </summary>
+    internal static Native.WindowClassEx CreateWindowClass(nint instance, nint windowProc) => new()
+    {
+        cbSize = Marshal.SizeOf<Native.WindowClassEx>(),
+        style = 0x0002 | 0x0001 | Native.CS_DROPSHADOW,
+        lpfnWndProc = windowProc,
+        hInstance = instance,
+        hCursor = Native.LoadCursorW(0, Native.IDC_ARROW),
+        lpszClassName = ClassName,
+    };
 
     /// <summary>Opens the panel above the icon, or closes it when it is open.</summary>
     public static void Toggle(IReadOnlyList<AgentSession> sessions, DateTimeOffset now, nint owner)

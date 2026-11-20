@@ -12,8 +12,12 @@ alone.
 
 ## What this is
 
-<One paragraph. What the product does, who it is for, and what it explicitly is
-not.>
+A Windows tray indicator for pi, the coding agent that runs in terminal tabs. One
+icon shows which sessions are working, which one is waiting for an answer, and
+which one failed, so nobody alt-tabs through tabs to find out. It is for one
+person on one machine and it only reports: it never sends input to pi, starts a
+tab, or reaches the network. Not cross-platform, not a dashboard, and it cannot
+say which tab a session lives in.
 
 ## Skills
 
@@ -648,19 +652,19 @@ Fill this in the first change, then keep it true. These are the only commands
 and names the agent may assume: a value that is missing is a question for the
 human, not a guess.
 
-- Product slug:
-- Stack:
-- Toolchain:
-- Trunk branch:
+- Product slug: trayclaw
+- Stack: C# .NET 10 with NativeAOT for the tray process, Win32 directly and no GUI toolkit; a pi extension in TypeScript writes agent state (next change)
+- Toolchain: .NET SDK 10.0.404 on win-x64; NuGet packages pinned by a committed packages.lock.json; NativeAOT needs the MSVC linker from Visual Studio Build Tools; xunit for tests
+- Trunk branch: main
 - Template: C:/Users/ypyl/projects/ai-first-template
 - Template revision: 82e4beb75f3ef1e1c71d55b5dce90b4967961afc
 - Template copied: 2026-11-20
-- Lint:
-- Build:
-- Test:
-- Run:
-- Secrets:
-- Environments:
+- Lint: dotnet format trayclaw.sln --verify-no-changes
+- Build: dotnet build trayclaw.sln -c Release
+- Test: dotnet test trayclaw.sln -c Release
+- Run: dotnet run --project src/Trayclaw -c Release
+- Secrets: none, and none planned: both halves exchange local files
+- Environments: one, this machine; agent state lives in %LOCALAPPDATA%/trayclaw and no server exists
 - OpenSpec CLI: 2.1.0 (the only external tool; check `openspec --version`)
 - Versions: git tags `<product>-v<semver>`, cut at release. No version file.
 

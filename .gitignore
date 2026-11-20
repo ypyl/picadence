@@ -21,3 +21,10 @@ Thumbs.db
 
 # Logs
 *.log
+
+# .NET build output. The lockfiles are committed, the binaries are not.
+**/bin/
+**/obj/
+*.user
+.vs/
+TestResults/

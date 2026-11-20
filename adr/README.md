@@ -9,7 +9,7 @@ the old one Superseded.
 
 | ADR | Title | Status |
 |---|---|---|
-| | | |
+| [0001](0001-native-tray-fed-by-pi-extension.md) | A native tray app fed by a pi extension | Accepted |
 
 ## Adding a decision
 

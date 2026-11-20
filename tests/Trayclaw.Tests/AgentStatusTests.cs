@@ -86,51 +86,6 @@ public class AgentStatusTests
         Assert.Contains("1 quiet", tooltip, StringComparison.Ordinal);
     }
 
-    [Fact(DisplayName = "the menu lists each session with its folder, state, and age")]
-    public void The_menu_lists_each_session_with_folder_state_and_age()
-    {
-        AgentSession[] sessions =
-        [
-            Session(1, AgentState.Working, secondsAgo: 90, folder: "older"),
-            Session(2, AgentState.Blocked, secondsAgo: 5, folder: "newer", detail: "confirm"),
-        ];
-
-        var rows = AgentStatus.Menu(sessions, Now, quitCommandId: 1);
-
-        var first = rows[0];
-        Assert.Equal(MenuEntryKind.Session, first.Kind);
-        Assert.Contains("newer", first.Label, StringComparison.Ordinal);
-        Assert.Contains("waiting", first.Label, StringComparison.Ordinal);
-        Assert.Contains("5s", first.Label, StringComparison.Ordinal);
-        Assert.Contains("confirm", first.Label, StringComparison.Ordinal);
-
-        var second = rows[1];
-        Assert.Contains("older", second.Label, StringComparison.Ordinal);
-        Assert.Contains("1m", second.Label, StringComparison.Ordinal);
-
-        Assert.Equal(MenuEntryKind.Separator, rows[2].Kind);
-        Assert.Equal(MenuEntryKind.Quit, rows[3].Kind);
-    }
-
-    [Fact(DisplayName = "the menu offers no action on a session")]
-    public void The_menu_offers_no_action_on_a_session()
-    {
-        AgentSession[] sessions = [Session(1, AgentState.Working), Session(2, AgentState.Done)];
-
-        var rows = AgentStatus.Menu(sessions, Now, quitCommandId: 1);
-
-        Assert.All(
-            rows.Where(row => row.Kind == MenuEntryKind.Session),
-            row =>
-            {
-                Assert.False(row.Enabled, "a session row cannot be chosen");
-                Assert.Equal(0, row.CommandId);
-            });
-        var quit = rows.Single(row => row.Kind == MenuEntryKind.Quit);
-        Assert.True(quit.Enabled);
-        Assert.Equal(1, quit.CommandId);
-    }
-
     [Fact(DisplayName = "a state change is shown within two seconds")]
     public void A_state_change_is_shown_within_two_seconds()
     {

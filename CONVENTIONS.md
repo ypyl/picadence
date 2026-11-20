@@ -21,6 +21,12 @@ icon.
 A test names the behaviour it proves, sits beside the code it covers, and the
 suite runs with `dotnet test`. Trigger: a fix whose bug no test reproduces.
 
+## Sizes
+
+A size in the panel is written in device-independent pixels and scaled once, at
+paint time, by the scale the window actually got. Trigger: a magic pixel number
+in a paint call.
+
 ## The pi side
 
 `extensions/trayclaw.js` is plain ESM with no build step, because pi loads it

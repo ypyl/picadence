@@ -58,6 +58,8 @@ public class InteropTests
         "user32.dll",
         "kernel32.dll",
         "shell32.dll",
+        "gdi32.dll",
+        "dwmapi.dll",
     ];
 
     [Fact(DisplayName = "the tray links no network entry point")]

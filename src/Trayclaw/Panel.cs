@@ -288,7 +288,7 @@ internal static class Panel
             Native.SelectObject(dc, previousBrush);
 
             var textLeft = row.Bounds.X + 26;
-            var textWidth = row.Bounds.Width - 26 - 64;
+            var textWidth = row.AgeBounds.X - 8 - textLeft;
 
             Text(dc, row.Folder, new DipRect(textLeft, row.Bounds.Y + 5, textWidth, 20),
                 14, Native.FW_NORMAL, PanelTheme.PrimaryText,
@@ -299,8 +299,7 @@ internal static class Panel
                 12, Native.FW_NORMAL, PanelTheme.SecondaryText,
                 Native.DT_LEFT | Native.DT_SINGLELINE | Native.DT_END_ELLIPSIS);
 
-            Text(dc, row.Age, new DipRect(row.Bounds.X + row.Bounds.Width - 60, row.Bounds.Y + 15, 60, 16),
-                12, Native.FW_NORMAL, PanelTheme.SecondaryText,
+            Text(dc, row.Age, row.AgeBounds, 12, Native.FW_NORMAL, PanelTheme.SecondaryText,
                 Native.DT_RIGHT | Native.DT_SINGLELINE);
         }
 

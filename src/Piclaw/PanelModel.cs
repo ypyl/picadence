@@ -16,8 +16,18 @@ public enum PanelHit
 {
     None,
     Row,
+    Autostart,
     Quit,
 }
+
+/// <summary>The controls at the foot of the panel. Rows are labels, not controls.</summary>
+public enum PanelAction
+{
+    Autostart,
+    Quit,
+}
+
+public sealed record PanelActionRow(PanelAction Action, DipRect Bounds, string Label, string Value);
 
 public sealed record PanelRow(
     DipRect Bounds,
@@ -39,15 +49,18 @@ public sealed class PanelLayout
     public string? EmptyHint { get; init; }
     public DipRect EmptyBounds { get; init; }
     public IReadOnlyList<PanelRow> Rows { get; init; } = [];
+    public IReadOnlyList<PanelActionRow> Actions { get; init; } = [];
     public string? MoreText { get; init; }
     public DipRect MoreBounds { get; init; }
-    public required DipRect QuitBounds { get; init; }
 
     public PanelHit HitTest(double x, double y)
     {
-        if (QuitBounds.Contains(x, y))
+        foreach (var action in Actions)
         {
-            return PanelHit.Quit;
+            if (action.Bounds.Contains(x, y))
+            {
+                return action.Action == PanelAction.Quit ? PanelHit.Quit : PanelHit.Autostart;
+            }
         }
 
         return Rows.Any(row => row.Bounds.Contains(x, y)) ? PanelHit.Row : PanelHit.None;
@@ -62,8 +75,8 @@ public static class PanelModel
     public const double HeaderHeight = 40;
     public const double RowHeight = 44;
     public const double RowSpacing = 8;
-    public const double FooterHeight = 40;
-    public const double QuitWidth = 60;
+    public const double ActionHeight = 28;
+    public const double ActionSpacing = 2;
     public const double RowPadding = 12;
     public const double AgeWidth = 44;
     public const int MaxRows = 8;
@@ -73,7 +86,7 @@ public static class PanelModel
     /// row says how many are not shown rather than growing the panel past the
     /// screen.
     /// </summary>
-    public static PanelLayout Build(IReadOnlyList<AgentSession> sessions, DateTimeOffset now)
+    public static PanelLayout Build(IReadOnlyList<AgentSession> sessions, DateTimeOffset now, bool autostartOn)
     {
         var ordered = sessions
             .OrderByDescending(session => session.UpdatedAt)
@@ -125,8 +138,14 @@ public static class PanelModel
         }
 
         y += RowSpacing;
-        var quit = new DipRect(Width - Padding - QuitWidth, y, QuitWidth, FooterHeight);
-        y += FooterHeight + Padding;
+        var actions = new List<PanelActionRow>(2)
+        {
+            new(PanelAction.Autostart, new DipRect(Padding, y, inner, ActionHeight),
+                "Start with Windows", autostartOn ? "on" : "off"),
+        };
+        y += ActionHeight + ActionSpacing;
+        actions.Add(new PanelActionRow(PanelAction.Quit, new DipRect(Padding, y, inner, ActionHeight), "Quit", string.Empty));
+        y += ActionHeight + Padding;
 
         var counts = sessions
             .GroupBy(session => session.State)
@@ -143,9 +162,9 @@ public static class PanelModel
             EmptyHint = empty ? "Start pi to see it here" : null,
             EmptyBounds = emptyBounds,
             Rows = rows,
+            Actions = actions,
             MoreText = moreText,
             MoreBounds = moreBounds,
-            QuitBounds = quit,
         };
     }
 
@@ -207,7 +226,7 @@ public enum PanelPointer
 public static class PanelCursor
 {
     public static PanelPointer For(PanelHit hit) =>
-        hit == PanelHit.Quit ? PanelPointer.Hand : PanelPointer.Arrow;
+        hit is PanelHit.Quit or PanelHit.Autostart ? PanelPointer.Hand : PanelPointer.Arrow;
 }
 
 public enum PanelInput

@@ -230,6 +230,23 @@ internal static class Native
     [DllImport("user32.dll")]
     internal static extern bool DestroyIcon(nint icon);
 
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode)]
+    internal static extern int RegOpenKeyExW(nint key, string subKey, int options, int rights, out nint result);
+
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode)]
+    internal static extern int RegQueryValueExW(
+        nint key, string valueName, nint reserved, out int type, byte[]? data, ref int size);
+
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode)]
+    internal static extern int RegSetValueExW(
+        nint key, string valueName, nint reserved, int type, byte[] data, int size);
+
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode)]
+    internal static extern int RegDeleteValueW(nint key, string valueName);
+
+    [DllImport("advapi32.dll")]
+    internal static extern int RegCloseKey(nint key);
+
     [DllImport("kernel32.dll")]
     internal static extern nint OpenProcess(int access, bool inheritHandle, int processId);
 

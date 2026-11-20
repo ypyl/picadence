@@ -42,8 +42,9 @@ flowchart TB
   pi["External: pi<br/>TUI session in a terminal tab"]
   os["External: Windows shell<br/>notification area"]
 
-  user -->|"click, Quit"| app
+  user -->|"click, Start with Windows, Quit"| app
   app -->|"Shell_NotifyIcon, Win32"| os
+  app -->|"one Run value, HKCU"| os
   os -->|"icon, tooltip, panel"| user
   pi -->|"loads"| ext
   ext -->|"writes one file per transition"| store
@@ -83,6 +84,7 @@ flowchart TB
 | Store | Holds | Path | Lifetime |
 |---|---|---|---|
 | state directory | one JSON file per session: pid, session id, folder, name, model, state, detail, updated time | `%LOCALAPPDATA%/piclaw/agents` | written on every transition, removed on clean exit or by the tray once the process is gone |
+| Run value | the command Windows runs at sign-in, or nothing | `HKCU/Software/Microsoft/Windows/CurrentVersion/Run/piclaw` | present only while Start with Windows is on |
 
 ## Open questions
 

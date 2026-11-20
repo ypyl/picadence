@@ -106,6 +106,13 @@ internal static class Program
         // Without this every size in the panel is a guess on a scaled monitor.
         Native.SetProcessDpiAwarenessContext(ProcessPerMonitorV2);
 
+        // A registration that names another path is corrected here, so a move or
+        // a rebuild never leaves Windows starting a file that is gone.
+        if (Environment.ProcessPath is { Length: > 0 } exe)
+        {
+            Autostart.Follow(exe);
+        }
+
         foreach (var state in Enum.GetValues<AgentState>())
         {
             Icons[state] = CreateIconFor(state);

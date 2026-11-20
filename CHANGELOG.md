@@ -5,6 +5,9 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- piclaw can start with Windows. The panel has a Start with Windows control that
+  turns it on and off, with no administrator and no settings file, and the entry
+  follows the exe if you move or rebuild it.
 - The product is called piclaw. Same tray, same panel, new name: the exe, the pi
   extension, and the state folder follow it.
 - Quit now looks like a button: hovering it paints a highlight and turns the

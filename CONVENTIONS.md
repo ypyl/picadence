@@ -21,6 +21,15 @@ icon.
 A test names the behaviour it proves, sits beside the code it covers, and the
 suite runs with `dotnet test`. Trigger: a fix whose bug no test reproduces.
 
+## The pi side
+
+`extensions/trayclaw.js` is plain ESM with no build step, because pi loads it
+directly and `node --test` has to import the same file. Trigger: an import that
+needs compiling.
+
+A handler in that file catches its own errors and reports nothing rather than
+breaking a session. Trigger: an exception that reaches pi's event loop.
+
 ## Dependencies
 
 The tray has no package reference at all; a package is added only when the

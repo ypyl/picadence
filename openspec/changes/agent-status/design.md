@@ -66,9 +66,9 @@ Every second, one pass over the state directory:
    with `JsonDocument`.
 2. Drop a file whose `pid` is not a running process, and delete it. Liveness is
    `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)`.
-3. Aggregate what remains, update the tooltip and the icon colour, and rebuild
-   the menu only when its content changed, so an open menu is not reset every
-   second for nothing.
+3. Aggregate what remains and update the tooltip and the icon colour when either
+   changed. The menu is built when it is opened, from the last pass, so nothing
+   is rebuilt once a second for a menu nobody is looking at.
 
 The pass is one directory read of a handful of small files. On this machine the
 whole process measured 10.35 MB working set and 3.11 MB private bytes while doing

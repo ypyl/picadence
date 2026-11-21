@@ -7,10 +7,14 @@ Read this index before proposing a change. If a change touches a decision here,
 link it from the proposal. If it changes the decision, write a new ADR and mark
 the old one Superseded.
 
+The product has been called `trayclaw`, then `piclaw`, and has been `picadence`
+since 2026-11-21. A decision keeps the name it was written with, so the two below
+say the names of their day; the changelog carries the rename.
+
 | ADR | Title | Status |
 |---|---|---|
 | [0001](0001-native-tray-fed-by-pi-extension.md) | A native tray app fed by a pi extension | Accepted |
-| [0002](0002-the-tray-may-wake-a-session.md) | The tray may wake a session on a cadence | Proposed |
+| [0002](0002-the-tray-may-wake-a-session.md) | The tray may wake a session on a cadence | Accepted |
 
 ## Adding a decision
 

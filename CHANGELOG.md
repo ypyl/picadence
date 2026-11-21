@@ -5,6 +5,10 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- The two controls at the foot of the panel now have real padding and a taller
+  hit area, so a hovered one reads as a button instead of a highlighted row.
+- `DESIGN.md` records the visual language: tokens, spacing, type, states, and the
+  contrast floor.
 - Hovering the tray icon no longer shows a tooltip. The session counts are on the
   panel's summary line, where you open them on purpose.
 - piclaw can start with Windows. The panel has a Start with Windows control that

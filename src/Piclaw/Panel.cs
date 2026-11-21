@@ -415,7 +415,7 @@ internal static class Panel
         {
             if (_hovered == action.Action)
             {
-                var box = Scaled(inset(action.Bounds, 2));
+                var box = Scaled(inset(action.Bounds, PanelModel.ActionInset));
                 var previousPen = Native.SelectObject(dc, Native.GetStockObject(Native.NULL_PEN));
                 var previousBrush = Native.SelectObject(dc, Brush(PanelTheme.Hover));
                 var radius = (int)Math.Round(4 * _scale);
@@ -424,17 +424,12 @@ internal static class Panel
                 Native.SelectObject(dc, previousPen);
             }
 
-            Text(dc, action.Label, action.Bounds, 12, Native.FW_NORMAL, PanelTheme.PrimaryText,
+            Text(dc, action.Label, action.LabelBounds, 12, Native.FW_NORMAL, PanelTheme.PrimaryText,
                 Native.DT_LEFT | Native.DT_VCENTER | Native.DT_SINGLELINE);
 
             if (action.Value.Length > 0)
             {
-                var value = new DipRect(
-                    action.Bounds.X + action.Bounds.Width - 60,
-                    action.Bounds.Y,
-                    60 - PanelModel.RowPadding,
-                    action.Bounds.Height);
-                Text(dc, action.Value, value, 12, Native.FW_NORMAL, PanelTheme.SecondaryText,
+                Text(dc, action.Value, action.ValueBounds, 12, Native.FW_NORMAL, PanelTheme.SecondaryText,
                     Native.DT_RIGHT | Native.DT_VCENTER | Native.DT_SINGLELINE);
             }
         }

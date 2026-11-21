@@ -24,8 +24,9 @@ suite runs with `dotnet test`. Trigger: a fix whose bug no test reproduces.
 ## Sizes
 
 A size in the panel is written in device-independent pixels and scaled once, at
-paint time, by the scale the window actually got. Trigger: a magic pixel number
-in a paint call.
+paint time, by the scale the window actually got. The values themselves, and what
+each one is for, are in `DESIGN.md`. Trigger: a magic pixel number in a paint
+call.
 
 ## The registry
 

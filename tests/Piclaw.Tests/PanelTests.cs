@@ -361,6 +361,29 @@ public class PanelFlyoutTests
         Assert.Equal(PanelHit.Flyout, flyoutLayout.HitTest(flyout.Bounds.X + 4, flyout.Bounds.Y + 4));
     }
 
+    [Fact(DisplayName = "the cadence list says what it is")]
+    public void The_cadence_list_says_what_it_is()
+    {
+        var layout = PanelModel.Build([Session(1)], Now, false, flyoutFor: Session(1).Reference);
+        var flyout = Assert.IsType<PanelFlyout>(layout.Flyout);
+
+        Assert.Equal("Repeat ping", flyout.Header);
+        Assert.True(
+            flyout.Bounds.Contains(flyout.HeaderBounds.X + 2, flyout.HeaderBounds.Y + 2),
+            "the heading is inside the list");
+
+        var headerBottom = flyout.HeaderBounds.Y + flyout.HeaderBounds.Height;
+        Assert.True(
+            headerBottom <= flyout.Items[0].Bounds.Y,
+            $"the first cadence starts at {flyout.Items[0].Bounds.Y}, the heading ends at {headerBottom}");
+
+        // A click on the heading is a click on the list and not on a cadence, so it
+        // closes the list instead of arming something.
+        var headerPoint = (X: flyout.HeaderBounds.X + 4, Y: flyout.HeaderBounds.Y + 4);
+        Assert.Equal(PanelHit.Flyout, layout.HitTest(headerPoint.X, headerPoint.Y));
+        Assert.DoesNotContain(flyout.Items, item => item.Bounds.Contains(headerPoint.X, headerPoint.Y));
+    }
+
     [Fact]
     public void An_unarmed_row_says_nothing_about_a_cadence()
     {

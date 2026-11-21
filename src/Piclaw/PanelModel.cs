@@ -51,7 +51,12 @@ public sealed record PanelRow(
 public sealed record PanelFlyoutItem(Cadence Cadence, DipRect Bounds, string Label, bool Selected);
 
 /// <summary>The list a right click opens, painted inside the panel's own window.</summary>
-public sealed record PanelFlyout(int RowIndex, DipRect Bounds, IReadOnlyList<PanelFlyoutItem> Items);
+public sealed record PanelFlyout(
+    int RowIndex,
+    DipRect Bounds,
+    string Header,
+    DipRect HeaderBounds,
+    IReadOnlyList<PanelFlyoutItem> Items);
 
 public sealed class PanelLayout
 {
@@ -121,6 +126,14 @@ public static class PanelModel
 
     public const double FlyoutItemHeight = 30;
     public const double FlyoutPadding = 6;
+
+    /// <summary>The heading's own row, so the list says what it is.</summary>
+    public const double FlyoutHeaderHeight = 24;
+
+    /// <summary>One device-independent pixel between the heading and the cadences.</summary>
+    public const double FlyoutRule = 1;
+
+    public const string FlyoutHeader = "Repeat ping";
 
     /// <summary>
     /// The panel for these sessions. Rows are newest first, capped, and the last
@@ -212,7 +225,7 @@ public static class PanelModel
 
         // A list that is taller than the rows it covers grows the panel, because a
         // window cannot paint outside itself. With one session that is the normal
-        // case: 190 DIPs of panel against 192 DIPs of list.
+        // case: 190 DIPs of panel against 211 DIPs of list.
         var height = flyout is { } open ? Math.Max(y, open.Bounds.Y + open.Bounds.Height + Padding) : y;
 
         return new PanelLayout
@@ -286,7 +299,8 @@ public static class PanelModel
             return null;
         }
 
-        var height = (2 * FlyoutPadding) + (CadenceExtensions.Offered.Length * FlyoutItemHeight);
+        var height = (2 * FlyoutPadding) + FlyoutHeaderHeight + FlyoutRule
+            + (CadenceExtensions.Offered.Length * FlyoutItemHeight);
         var x = Math.Clamp(
             rows[index].Bounds.X + rows[index].Bounds.Width - FlyoutWidth,
             Padding,
@@ -300,8 +314,14 @@ public static class PanelModel
             ? armed.Every
             : Cadence.Off;
 
+        var header = new DipRect(
+            x + FlyoutPadding,
+            y + FlyoutPadding,
+            FlyoutWidth - (2 * FlyoutPadding),
+            FlyoutHeaderHeight);
+
         var items = new List<PanelFlyoutItem>(CadenceExtensions.Offered.Length);
-        var itemY = y + FlyoutPadding;
+        var itemY = y + FlyoutPadding + FlyoutHeaderHeight + FlyoutRule;
         foreach (var cadence in CadenceExtensions.Offered)
         {
             items.Add(new PanelFlyoutItem(
@@ -312,7 +332,7 @@ public static class PanelModel
             itemY += FlyoutItemHeight;
         }
 
-        return new PanelFlyout(index, new DipRect(x, y, FlyoutWidth, height), items);
+        return new PanelFlyout(index, new DipRect(x, y, FlyoutWidth, height), FlyoutHeader, header, items);
     }
 
     /// <summary>

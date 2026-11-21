@@ -17,31 +17,25 @@ Rules:
 
 - `dotnet build picadence.sln -c Release` finished in 4 s with 0 warnings and 0
   errors, on this machine, 2026-11-20.
-- `dotnet test picadence.sln -c Release` reported 62 passed, 0 failed, 76 ms,
-  2026-11-20 (26 before the agent-status change).
-- `dotnet test picadence.sln -c Release` reported 111 passed, 0 failed, 74 ms after
-  the scheduled-ping change, 2026-11-21. `node --test
-  extensions/picadence.test.mjs` reported 13 passed, up from 7.
-- `dotnet format picadence.sln --verify-no-changes` exited 0 after `.editorconfig`
-  was added, 2026-11-20.
+- `dotnet test picadence.sln -c Release` reported 114 passed, 0 failed, on
+  2026-11-21 (111 after the scheduled-ping change, 62 before it).
+  `node --test extensions/picadence.test.mjs` reported 13 passed, up from 7.
 - `dotnet run --project src/Picadence -c Release` started the tray and the child
   process stayed alive past 6 s, 2026-11-20. It runs the JIT build, so it costs
   about 19 MB; the AOT publish is the build a user runs.
 - `dotnet publish src/Picadence/Picadence.csproj -c Release` produced one
-  `Picadence.exe` of 1,556,480 bytes, with no runtime dependency, 2026-11-20. It
-  needs the MSVC linker; without Visual Studio Build Tools the AOT step fails.
-  Reading state added `System.Text.Json`, which took the exe from 876,032 bytes.
-- The same publish after the scheduled-ping change produced 1,751,552 bytes, and
-  the published exe read 12.5 MB working set and 3.97 MB private after 8 s with
-  five live sessions on disk, 2026-11-21. The schedule and ping directories are
-  read or written on the same tick, so this is the number that includes them.
+  `Picadence.exe`, 1,760,768 bytes at v0.1.0, with no runtime dependency. It needs
+  the MSVC linker; without Visual Studio Build Tools the AOT step fails, and the
+  hosted runner has one. `-p:Version=0.1.0` put `0.1.0+<commit>` in the product
+  version without a version file, 2026-11-21.
 - With the panel open on a 125% display: 16.3 MB working set and 4.6 MB private,
   2026-11-20. The panel is 320x320 DIPs at scale 1.25, so the larger surface is
   the cost, not a leak. Idle with the panel closed stays near the row below.
-- The capture for the visual check has to come from a DPI-aware process. A
-  DPI-unaware one sees 400 physical pixels as 320 and saves a cropped image that
-  looks like a layout bug; `SetProcessDPIAware` in the capture script fixed it,
-  2026-11-20.
+- The capture for the visual check has to come from a DPI-aware process, and so
+  does anything that turns a window rect into a screen grab. A DPI-unaware one
+  sees 400 physical pixels as 320, so a `CopyFromScreen` of a `GetWindowRect`
+  lands 25% short of the window and saves a cropped image that looks like a layout
+  bug. `SetProcessDpiAwarenessContext(-4)` first, then measure, 2026-11-21.
 - Memory: the ten-second figures read on 2026-11-20 (3.1 to 3.4 MB private,
   about 11 MB working set, one session) are warm-up samples and `README.md`
   quoted them as if they were the product's cost. The same exe with one dead and
@@ -54,8 +48,6 @@ Rules:
   forces a full collection every 15 s reports a live managed heap of 56 KB,
   flat, 800 KB committed, private bytes flat at 4.16 MB for five minutes. The
   creep is the GC's budget meeting the allocation rate.
-- The JIT build measured 19.98 MB working set against the AOT build's 11 MB,
-  which is why the release build is AOT.
 - `node --test extensions/picadence.test.mjs` reported 7 passed, 0 failed,
   2026-11-20. `node --test extensions` does not work on Node 22.23: it treats the
   directory as a module. Name the file.
@@ -83,6 +75,26 @@ Rules:
 - A state file whose `cwd` held single backslashes was rejected and its session
   never appeared, which is the state reader being strict rather than a bug,
   2026-11-21.
+
+## Hosted runner
+
+- The first CI run, 2026-11-21, on `windows-latest` (`windows-2025`): 1m56s,
+  green on the first try, with `All checks passed, 0 warning(s).`, 114 .NET tests
+  and 13 node tests. The earlier pushes ran in 2m06s to 2m20s. It found no
+  interop problem: the icon, cursor and registry calls all work without a desktop.
+- The image's default SDK is **11.0.100**, not the 10.0.404 in Project facts. The
+  net10.0 build, `dotnet format --verify-no-changes`, the AOT link and both suites
+  all pass under it. `global.json` was tried, pinning 10.0.404 with
+  `rollForward: latestFeature`, and the run then reported 10.0.404, but the pin
+  was dropped on the human's decision: the ADR says the SDK comes from the image.
+  So this machine compiles with 10.0.404 and CI compiles with 11.0.100. The
+  `Record the toolchain` step prints both versions on every run, so the day they
+  disagree about formatting or an analyzer, the log says which compiler did it.
+  `shortcut: CI takes the image's default SDK while this machine is pinned to 10,
+  add global.json the first time the two disagree about a build or a format check.`
+- Node on the image is 22.23.5, and the OpenSpec CLI the workflow installs is
+  2.1.0, read from Project facts at run time. `gh run watch --exit-status` exits 0
+  on a green run and non-zero on a red one.
 
 ## Environment
 

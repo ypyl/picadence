@@ -1,0 +1,62 @@
+# The gate a merge waits for. It calls scripts/verify.sh rather than restating
+# the steps, so "how to check this repository" keeps one owner, and a step added
+# there reaches this runner without a second edit.
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      # A fresh clone has no core.hooksPath, and scripts/check-change.sh fails its
+      # Local gate section without it, before anything is compiled. bootstrap sets
+      # the same thing on a new machine.
+      - name: Install the local gate
+        run: git config core.hooksPath .githooks
+
+      # What the image actually shipped, in the log, so a green run says which
+      # SDK and which Node proved it.
+      - name: Record the toolchain
+        shell: bash
+        run: |
+          dotnet --version
+          dotnet --list-sdks
+          node --version
+
+      # The one external tool this project has, at the version Project facts
+      # names. check-change.sh skips its OpenSpec sections when the command is
+      # missing, so a runner without it would quietly check less than this
+      # machine does.
+      - name: Install the OpenSpec CLI
+        shell: bash
+        run: |
+          version=$(sed -n 's/^- OpenSpec CLI: \([0-9][0-9.]*\).*/\1/p' AGENTS.md | head -1)
+          echo "installing openspec $version"
+          npm install --global "@fission-ai/openspec@$version"
+          openspec --version
+
+      - name: Verify
+        shell: bash
+        run: bash scripts/verify.sh
+
+      # 0.0.0-ci.<run> says "this is not a release" where Windows shows a
+      # version. A version belongs to a tag, and this workflow cuts none.
+      - name: Publish
+        run: dotnet publish src/Picadence/Picadence.csproj -c Release -p:Version=0.0.0-ci.${{ github.run_number }}
+
+      - name: Upload the executable
+        uses: actions/upload-artifact@v7
+        with:
+          name: picadence-ci
+          path: src/Picadence/bin/Release/net10.0/win-x64/publish/Picadence.exe
+          if-no-files-found: error

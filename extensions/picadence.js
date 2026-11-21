@@ -113,6 +113,46 @@ export function pollPings({ directory, sessionId, state, send, now = Date.now() 
   return decision;
 }
 
+/**
+ * What a session's terminal tab shows. A mark says which state the session is in,
+ * and the label says which session it is; a tab is never a mark alone.
+ */
+export const TAB_MARKS = Object.freeze({
+  working: "●",
+  blocked: "▲",
+  error: "✖",
+  done: "✓",
+  idle: "",
+});
+
+/** The tab text for a state and the session's label. Idle adds no mark. */
+export function tabTitle(state, label) {
+  const mark = TAB_MARKS[state] ?? "";
+  const name = typeof label === "string" ? label.trim() : "";
+  if (!name) {
+    return mark;
+  }
+  return mark ? `${mark} ${name}` : name;
+}
+
+/**
+ * The ConEmu "OSC 9;4" sequence a terminal uses for its tab ring and taskbar
+ * progress. Windows Terminal understands it; pi has no API for it, so the caller
+ * has to write it to the terminal itself. Off unless asked for, see the README.
+ */
+export function tabProgressSequence(state) {
+  switch (state) {
+    case "working":
+      return "]9;4;3;0";
+    case "blocked":
+      return "]9;4;4;100";
+    case "error":
+      return "]9;4;2;100";
+    default:
+      return "]9;4;0;0";
+  }
+}
+
 export function initialState() {
   return { state: "idle", detail: undefined, runActive: false, outcome: undefined };
 }
@@ -231,19 +271,43 @@ export default function picadence(pi) {
     }
   };
 
+  /**
+   * The tab belongs to the session, so the state it shows is the state of this
+   * session and not an aggregate. The ring is opt-in: it means writing an escape
+   * sequence to the terminal while pi owns the screen, which nobody has watched
+   * long enough to call safe.
+   */
+  const showInTab = (ctx, facts) => {
+    try {
+      ctx?.ui?.setTitle?.(tabTitle(current.state, facts.name || facts.folder));
+    } catch {
+      // A terminal that cannot take a title is not a reason to fail a session.
+    }
+
+    if (process.env.PICADENCE_TAB_PROGRESS === "1") {
+      try {
+        process.stdout.write(tabProgressSequence(current.state));
+      } catch {
+        // Same.
+      }
+    }
+  };
+
   const flush = (ctx) => {
     if (!reporting || !fileName) {
       return;
     }
     try {
+      const facts = describe(ctx);
       writeState(directory, fileName, {
         pid: process.pid,
         sessionId,
-        ...describe(ctx),
+        ...facts,
         state: current.state,
         detail: current.detail,
         updatedAt: new Date().toISOString(),
       });
+      showInTab(ctx, facts);
     } catch {
       // A tray that cannot read the file is better than a session that dies
       // because the tray was missing.

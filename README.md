@@ -28,6 +28,32 @@ state's colour), and Quit. It closes when it loses focus or on Escape, and it
 keeps up while it is open. A row does nothing: picadence never sends input to a
 session.
 
+## What the tab says
+
+The pi half of picadence also writes to the terminal it runs in, so a tab says
+what its session is doing even when the tray is not running:
+
+```
+  ● docs-site     working
+  ▲ checkout      waiting for you
+  ✖ infra         failed
+  ✓ traylclaw     done
+    notes         idle, and no mark at all
+```
+
+The mark goes before the session's name, or its folder when the session has no
+name. It never replaces the label, so a tab is always identifiable.
+
+Windows Terminal can also show the state as a ring on the tab and on the taskbar,
+through the ConEmu progress sequence. That is **off by default**, because it means
+writing an escape sequence to the terminal while pi owns the screen, and nobody
+has watched a long session with it yet. To try it, set `PICADENCE_TAB_PROGRESS=1`
+in the environment pi starts in and restart the tab.
+
+Two Terminal behaviours can override the title, and neither is ours to fix: a tab
+you rename by hand stops following the title the process sets, and a shell prompt
+that sets its own title can overwrite ours between turns.
+
 ## Start with Windows
 
 Open the panel and click **Start with Windows**; it reads `on`, and Windows

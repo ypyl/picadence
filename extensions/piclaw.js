@@ -49,6 +49,8 @@ export function pingDirectory(env = process.env) {
   return agents ? path.join(path.dirname(agents), "pings") : undefined;
 }
 
+// shortcut: a ping lands up to ten seconds after the tray writes it, poll faster
+// or switch to fs.watch when a cadence ever needs second precision
 /** How often a session looks for a ping. */
 export const PingPollMilliseconds = 10_000;
 

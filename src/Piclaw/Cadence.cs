@@ -22,6 +22,8 @@ public static class CadenceExtensions
     /// windows is more than anyone wants to read, so the count stops and the
     /// message says "at least".
     /// </summary>
+    // shortcut: the count stops at 1000 and the message then says "at least", count
+    // exactly when someone needs the number for a longer gap than that
     public const int MaxMissed = 1000;
 
     /// <summary>The choices the panel offers, in the order it offers them.</summary>

@@ -322,3 +322,103 @@ public class PanelThemeTests
             Rgb.FromHex("#202020"), Rgb.FromHex("#202020")), 2);
     }
 }
+
+public class PanelFlyoutTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 11, 21, 14, 3, 0, TimeSpan.Zero);
+
+    private static AgentSession Session(int pid, string folder = "piclaw", int secondsAgo = 0) =>
+        new(new SessionRef(pid, $"session-{pid}"), folder, $"name-{pid}", null, AgentState.Working, null,
+            Now.AddSeconds(-secondsAgo));
+
+    private static Schedule Armed(int pid, Cadence every, DateTimeOffset nextAt) =>
+        new($"session-{pid}", $"name-{pid}", "piclaw", every, nextAt, null, 0);
+
+    private static IReadOnlyDictionary<SessionRef, Schedule> Cadences(params Schedule[] schedules) =>
+        schedules.ToDictionary(schedule => new SessionRef(PidOf(schedule.SessionId), schedule.SessionId));
+
+    private static int PidOf(string sessionId) => int.Parse(sessionId["session-".Length..], System.Globalization.CultureInfo.InvariantCulture);
+
+    [Fact(DisplayName = "arming a row sets the cadence and shows what comes next")]
+    public void Arming_a_row_sets_the_cadence_and_shows_what_comes_next()
+    {
+        var session = Session(1);
+        var schedule = Armed(1, Cadence.Hourly, Now.AddMinutes(24));
+
+        var layout = PanelModel.Build([session], Now, false, Cadences(schedule));
+        Assert.Equal("every hour, next in 24m", Assert.Single(layout.Rows).Schedule);
+        Assert.Null(layout.Flyout);
+
+        // A right click on the row opens the list, with that cadence chosen.
+        var flyoutLayout = PanelModel.Build([session], Now, false, Cadences(schedule), flyoutFor: session.Reference);
+        var flyout = Assert.IsType<PanelFlyout>(flyoutLayout.Flyout);
+
+        Assert.Equal(6, flyout.Items.Count);
+        var chosen = Assert.Single(flyout.Items, item => item.Selected);
+        Assert.Equal(Cadence.Hourly, chosen.Cadence);
+        Assert.Equal("every hour", chosen.Label);
+        Assert.Contains(flyout.Items, item => item.Cadence == Cadence.Off);
+        Assert.Equal(PanelHit.Flyout, flyoutLayout.HitTest(flyout.Bounds.X + 4, flyout.Bounds.Y + 4));
+    }
+
+    [Fact]
+    public void An_unarmed_row_says_nothing_about_a_cadence()
+    {
+        var layout = PanelModel.Build([Session(1)], Now, false);
+
+        Assert.Null(Assert.Single(layout.Rows).Schedule);
+        var flyout = Assert.IsType<PanelFlyout>(PanelModel.Build([Session(1)], Now, false, Cadences(), flyoutFor: Session(1).Reference).Flyout);
+        Assert.Equal("every 15 minutes", flyout.Items[0].Label);
+        Assert.Equal(Cadence.Off, Assert.Single(flyout.Items, item => item.Selected).Cadence);
+    }
+
+    [Fact]
+    public void The_flyout_stays_inside_the_panel()
+    {
+        // One row is the awkward case: the list is taller than the panel it sits
+        // in, so the panel has to grow rather than clip it.
+        foreach (var count in new[] { 1, 2, 8 })
+        {
+            AssertFlyoutFits(count);
+        }
+    }
+
+    private static void AssertFlyoutFits(int count)
+    {
+        var sessions = Enumerable.Range(1, count).Select(pid => Session(pid, secondsAgo: pid)).ToList();
+
+        for (var row = 0; row < sessions.Count; row++)
+        {
+            var layout = PanelModel.Build(sessions, Now, false, flyoutFor: sessions[row].Reference);
+            var flyout = Assert.IsType<PanelFlyout>(layout.Flyout);
+
+            Assert.True(flyout.Bounds.X >= 0, $"row {row}: the list starts at {flyout.Bounds.X}");
+            Assert.True(
+                flyout.Bounds.X + flyout.Bounds.Width <= layout.Width,
+                $"row {row}: the list ends at {flyout.Bounds.X + flyout.Bounds.Width}");
+            Assert.True(flyout.Bounds.Y >= 0, $"row {row}: the list starts at {flyout.Bounds.Y}");
+            Assert.True(
+                flyout.Bounds.Y + flyout.Bounds.Height <= layout.Height,
+                $"row {row}: the list ends at {flyout.Bounds.Y + flyout.Bounds.Height}");
+            Assert.All(flyout.Items, item => Assert.True(flyout.Bounds.Contains(
+                item.Bounds.X, item.Bounds.Y)));
+        }
+    }
+
+    [Fact]
+    public void The_flyout_answers_before_the_row_under_it()
+    {
+        var layout = PanelModel.Build([Session(1), Session(2, secondsAgo: 1)], Now, false, flyoutFor: new SessionRef(1, "session-1"));
+        var flyout = Assert.IsType<PanelFlyout>(layout.Flyout);
+        var item = flyout.Items[1];
+
+        Assert.Equal(PanelHit.Flyout, layout.HitTest(item.Bounds.X + 2, item.Bounds.Y + 2));
+        Assert.Equal(PanelPointer.Hand, PanelCursor.For(PanelHit.Flyout));
+
+        // A row the list does not cover still answers as a row.
+        var uncoveredRow = layout.Rows[^1];
+        Assert.Equal(
+            PanelHit.Row,
+            layout.HitTest(uncoveredRow.Bounds.X + 2, uncoveredRow.Bounds.Y + uncoveredRow.Bounds.Height - 2));
+    }
+}

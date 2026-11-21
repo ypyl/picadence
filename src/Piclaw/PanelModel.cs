@@ -16,6 +16,7 @@ public enum PanelHit
 {
     None,
     Row,
+    Flyout,
     Autostart,
     Quit,
 }
@@ -38,11 +39,19 @@ public sealed record PanelActionRow(
 public sealed record PanelRow(
     DipRect Bounds,
     DipRect AgeBounds,
+    SessionRef Reference,
     AgentState State,
     string Folder,
     string StateWord,
     string Detail,
-    string Age);
+    string Age,
+    string? Schedule);
+
+/// <summary>One cadence in the flyout a right click opens on a row.</summary>
+public sealed record PanelFlyoutItem(Cadence Cadence, DipRect Bounds, string Label, bool Selected);
+
+/// <summary>The list a right click opens, painted inside the panel's own window.</summary>
+public sealed record PanelFlyout(int RowIndex, DipRect Bounds, IReadOnlyList<PanelFlyoutItem> Items);
 
 public sealed class PanelLayout
 {
@@ -59,8 +68,18 @@ public sealed class PanelLayout
     public string? MoreText { get; init; }
     public DipRect MoreBounds { get; init; }
 
+    /// <summary>The cadence list, when a row has been right-clicked.</summary>
+    public PanelFlyout? Flyout { get; init; }
+
     public PanelHit HitTest(double x, double y)
     {
+        // The flyout is painted over the rows, so it answers first: a click that
+        // lands on it belongs to it and to nothing underneath.
+        if (Flyout is { } flyout && flyout.Bounds.Contains(x, y))
+        {
+            return PanelHit.Flyout;
+        }
+
         foreach (var action in Actions)
         {
             if (action.Bounds.Contains(x, y))
@@ -97,12 +116,24 @@ public static class PanelModel
     public const double AgeWidth = 44;
     public const int MaxRows = 8;
 
+    /// <summary>The cadence list: wide enough for "every 15 minutes", six rows tall.</summary>
+    public const double FlyoutWidth = 180;
+
+    public const double FlyoutItemHeight = 30;
+    public const double FlyoutPadding = 6;
+
     /// <summary>
     /// The panel for these sessions. Rows are newest first, capped, and the last
     /// row says how many are not shown rather than growing the panel past the
-    /// screen.
+    /// screen. A right click on a row adds the cadence list, which is painted over
+    /// the rows inside the same window.
     /// </summary>
-    public static PanelLayout Build(IReadOnlyList<AgentSession> sessions, DateTimeOffset now, bool autostartOn)
+    public static PanelLayout Build(
+        IReadOnlyList<AgentSession> sessions,
+        DateTimeOffset now,
+        bool autostartOn,
+        IReadOnlyDictionary<SessionRef, Schedule>? schedules = null,
+        SessionRef? flyoutFor = null)
     {
         var ordered = sessions
             .OrderByDescending(session => session.UpdatedAt)
@@ -127,11 +158,13 @@ public static class PanelModel
                     bounds.Y + 15,
                     AgeWidth,
                     16),
+                session.Reference,
                 session.State,
                 session.Folder,
                 session.State.Describe(),
                 session.Detail ?? string.Empty,
-                Age.Format(now - session.UpdatedAt)));
+                Age.Format(now - session.UpdatedAt),
+                ScheduleText(session.Reference, schedules, now)));
             y += RowHeight;
         }
 
@@ -174,10 +207,18 @@ public static class PanelModel
             .GroupBy(session => session.State)
             .ToDictionary(group => group.Key, group => group.Count());
 
+        var flyoutRow = flyoutFor is { } openSession ? RowOf(rows, openSession) : null;
+        var flyout = Flyout(rows, schedules, flyoutRow, y);
+
+        // A list that is taller than the rows it covers grows the panel, because a
+        // window cannot paint outside itself. With one session that is the normal
+        // case: 190 DIPs of panel against 192 DIPs of list.
+        var height = flyout is { } open ? Math.Max(y, open.Bounds.Y + open.Bounds.Height + Padding) : y;
+
         return new PanelLayout
         {
             Width = Width,
-            Height = y,
+            Height = height,
             HeaderBounds = header,
             Title = "piclaw",
             Summary = Summary(counts, sessions.Count),
@@ -188,7 +229,90 @@ public static class PanelModel
             Actions = actions,
             MoreText = moreText,
             MoreBounds = moreBounds,
+            Flyout = flyout,
         };
+    }
+
+    /// <summary>
+    /// The row a session sits on. The list follows the session, not the row number,
+    /// so a state change that reorders the rows cannot move an open list to another
+    /// session.
+    /// </summary>
+    private static int? RowOf(IReadOnlyList<PanelRow> rows, SessionRef reference)
+    {
+        for (var index = 0; index < rows.Count; index++)
+        {
+            if (rows[index].Reference == reference)
+            {
+                return index;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>The cadence on a row, or null when that session is not armed.</summary>
+    private static string? ScheduleText(
+        SessionRef reference, IReadOnlyDictionary<SessionRef, Schedule>? schedules, DateTimeOffset now)
+    {
+        if (schedules is null || !schedules.TryGetValue(reference, out var schedule))
+        {
+            return null;
+        }
+
+        var until = schedule.NextAt - now;
+        if (until < TimeSpan.Zero)
+        {
+            until = TimeSpan.Zero;
+        }
+
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{schedule.Every.Label()}, next in {Age.Format(until)}");
+    }
+
+    /// <summary>
+    /// The list a right click opens, anchored at the row and clamped inside the
+    /// panel, so it can never cross an edge the panel itself avoids.
+    /// </summary>
+    private static PanelFlyout? Flyout(
+        IReadOnlyList<PanelRow> rows,
+        IReadOnlyDictionary<SessionRef, Schedule>? schedules,
+        int? rowIndex,
+        double panelHeight)
+    {
+        if (rowIndex is not { } index || index < 0 || index >= rows.Count)
+        {
+            return null;
+        }
+
+        var height = (2 * FlyoutPadding) + (CadenceExtensions.Offered.Length * FlyoutItemHeight);
+        var x = Math.Clamp(
+            rows[index].Bounds.X + rows[index].Bounds.Width - FlyoutWidth,
+            Padding,
+            Math.Max(Padding, Width - Padding - FlyoutWidth));
+        var y = Math.Clamp(
+            rows[index].Bounds.Y,
+            Padding,
+            Math.Max(Padding, panelHeight - height - Padding));
+
+        var current = schedules is not null && schedules.TryGetValue(rows[index].Reference, out var armed)
+            ? armed.Every
+            : Cadence.Off;
+
+        var items = new List<PanelFlyoutItem>(CadenceExtensions.Offered.Length);
+        var itemY = y + FlyoutPadding;
+        foreach (var cadence in CadenceExtensions.Offered)
+        {
+            items.Add(new PanelFlyoutItem(
+                cadence,
+                new DipRect(x + FlyoutPadding, itemY, FlyoutWidth - (2 * FlyoutPadding), FlyoutItemHeight),
+                cadence.Label(),
+                cadence == current));
+            itemY += FlyoutItemHeight;
+        }
+
+        return new PanelFlyout(index, new DipRect(x, y, FlyoutWidth, height), items);
     }
 
     /// <summary>
@@ -269,7 +393,9 @@ public enum PanelPointer
 public static class PanelCursor
 {
     public static PanelPointer For(PanelHit hit) =>
-        hit is PanelHit.Quit or PanelHit.Autostart ? PanelPointer.Hand : PanelPointer.Arrow;
+        hit is PanelHit.Quit or PanelHit.Autostart or PanelHit.Flyout
+            ? PanelPointer.Hand
+            : PanelPointer.Arrow;
 }
 
 public enum PanelInput

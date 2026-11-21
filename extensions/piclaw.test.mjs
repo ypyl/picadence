@@ -8,6 +8,9 @@ import piclaw, {
   fileNameFor,
   isPlainSessionId,
   initialState,
+  PingMaxAgeMilliseconds,
+  pingDirectory,
+  pollPings,
   reduce,
   stateDirectory,
 } from "./piclaw.js";
@@ -164,5 +167,107 @@ test("a session that is not the root TUI session reports nothing", async () => {
       process.env.LOCALAPPDATA = previous;
     }
     fs.rmSync(localAppData, { recursive: true, force: true });
+  }
+});
+
+function withPings() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "piclaw-pings-"));
+  return {
+    directory: path.join(root, "pings"),
+    clean: () => fs.rmSync(root, { recursive: true, force: true }),
+  };
+}
+
+function writePing(directory, sessionId, ping) {
+  fs.mkdirSync(directory, { recursive: true });
+  fs.writeFileSync(path.join(directory, `${sessionId}.json`), JSON.stringify(ping), "utf8");
+}
+
+test("the ping directory sits beside the state directory", () => {
+  assert.equal(
+    pingDirectory({ LOCALAPPDATA: "C:\Data" }),
+    path.join("C:\Data", "piclaw", "pings"),
+  );
+});
+
+test("a cadence follows its session across restarts and resumes", () => {
+  const { directory, clean } = withPings();
+  try {
+    // Written while the session was closed: the tray kept the cadence, and the
+    // session that resumes is the one it was armed on.
+    const at = new Date(Date.now() - 1000).toISOString();
+    writePing(directory, "abc-123", { at, every: "1h", missed: 0, prompt: "piclaw ping - 09:00, every hour" });
+
+    const sent = [];
+    const decision = pollPings({
+      directory,
+      sessionId: "abc-123",
+      state: "done",
+      send: (text) => sent.push(text),
+    });
+
+    assert.equal(decision.action, "send");
+    assert.deepEqual(sent, ["piclaw ping - 09:00, every hour"]);
+    assert.equal(fs.existsSync(path.join(directory, "abc-123.json")), false);
+  } finally {
+    clean();
+  }
+});
+
+test("a busy session is skipped and the window counts as missed", () => {
+  const { directory, clean } = withPings();
+  try {
+    const at = new Date().toISOString();
+    for (const state of ["working", "blocked"]) {
+      writePing(directory, "abc-123", { at, prompt: "piclaw ping" });
+      const sent = [];
+      const decision = pollPings({ directory, sessionId: "abc-123", state, send: (text) => sent.push(text) });
+      assert.equal(decision.action, "skip");
+      assert.equal(decision.reason, "busy");
+      assert.deepEqual(sent, []);
+      assert.equal(fs.existsSync(path.join(directory, "abc-123.json")), false, "the file is not left behind");
+    }
+  } finally {
+    clean();
+  }
+});
+
+test("a ping older than five minutes is dropped", () => {
+  const { directory, clean } = withPings();
+  try {
+    const at = new Date(Date.now() - PingMaxAgeMilliseconds - 1000).toISOString();
+    writePing(directory, "abc-123", { at, prompt: "piclaw ping" });
+    const sent = [];
+    const decision = pollPings({ directory, sessionId: "abc-123", state: "idle", send: (text) => sent.push(text) });
+    assert.equal(decision.reason, "stale");
+    assert.deepEqual(sent, []);
+  } finally {
+    clean();
+  }
+});
+
+test("a ping that cannot be read is dropped without a turn", () => {
+  const { directory, clean } = withPings();
+  try {
+    fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(path.join(directory, "abc-123.json"), "not json", "utf8");
+    const sent = [];
+    const decision = pollPings({ directory, sessionId: "abc-123", state: "idle", send: (text) => sent.push(text) });
+    assert.equal(decision.reason, "nothing");
+    assert.deepEqual(sent, []);
+  } finally {
+    clean();
+  }
+});
+
+test("a session with no ping sends nothing", () => {
+  const { directory, clean } = withPings();
+  try {
+    const sent = [];
+    const decision = pollPings({ directory, sessionId: "abc-123", state: "idle", send: (text) => sent.push(text) });
+    assert.equal(decision.reason, "nothing");
+    assert.deepEqual(sent, []);
+  } finally {
+    clean();
   }
 });

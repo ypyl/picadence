@@ -17,13 +17,11 @@ internal static class Program
     private static nint _window;
     private static Native.NotifyIconData _icon;
     private static readonly Dictionary<AgentState, nint> Icons = [];
-    private static readonly string StateDirectory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "piclaw",
-        "agents");
-    private static readonly SessionStore Store = new(StateDirectory, IsProcessAlive);
+    private static readonly SessionStore Store = new(Paths.Agents, IsProcessAlive);
+    private static readonly ScheduleStore Schedules = new(Paths.Schedules);
 
     private static IReadOnlyList<AgentSession> _sessions = [];
+    private static IReadOnlyDictionary<SessionRef, Schedule> _armed = new Dictionary<SessionRef, Schedule>();
     private static AgentState _shownState = AgentState.Idle;
 
     [UnmanagedCallersOnly]
@@ -32,7 +30,7 @@ internal static class Program
         switch (message)
         {
             case TrayCallbackMessage when (int)(lParam & 0xFFFF) is Native.WM_LBUTTONUP or Native.WM_RBUTTONUP:
-                Panel.Toggle(_sessions, DateTimeOffset.UtcNow, _window);
+                Panel.Toggle(_sessions, _armed, DateTimeOffset.Now, _window);
                 return 0;
             case TrayCallbackMessage:
                 return 0;
@@ -57,10 +55,36 @@ internal static class Program
         }
     }
 
-    /// <summary>One pass: drop what ended, aggregate what is left, show it.</summary>
+    /// <summary>One pass: drop what ended, wake what is armed, aggregate what is left, show it.</summary>
     private static void Refresh()
     {
-        _sessions = Store.ReadAll(DateTimeOffset.UtcNow);
+        var now = DateTimeOffset.Now;
+
+        // The state directory is read first, so a session whose process has ended
+        // is already gone by the time a ping could be written for it.
+        _sessions = Store.ReadAll(now);
+
+        var tick = SchedulePlan.Plan(_sessions, Schedules.ReadAll(), now);
+        HashSet<string> undelivered = new(StringComparer.Ordinal);
+        foreach (var ping in tick.Pings)
+        {
+            if (!PingFile.Write(Paths.Pings, ping))
+            {
+                undelivered.Add(ping.Schedule.SessionId);
+            }
+        }
+
+        foreach (var schedule in tick.Written)
+        {
+            // A record whose ping never reached the disk keeps its next time in the
+            // past, so the window is retried instead of lost.
+            if (!undelivered.Contains(schedule.SessionId))
+            {
+                Schedules.Write(schedule);
+            }
+        }
+
+        _armed = tick.View;
 
         var state = AgentStatus.Aggregate(_sessions);
         if (state != _shownState)
@@ -71,7 +95,7 @@ internal static class Program
             Native.Shell_NotifyIconW(Native.NIM_MODIFY, ref _icon);
         }
 
-        Panel.Update(_sessions, DateTimeOffset.UtcNow);
+        Panel.Update(_sessions, _armed, now);
     }
 
     /// <summary>A process id is alive when it can still be opened for a query.</summary>

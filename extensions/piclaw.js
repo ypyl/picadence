@@ -40,6 +40,77 @@ export function stateDirectory(env = process.env) {
   return path.join(base, "piclaw", "agents");
 }
 
+/**
+ * The directory the tray writes a ping into, beside the state it reads. One file
+ * per session, named by session id, which is a plain stem on both sides.
+ */
+export function pingDirectory(env = process.env) {
+  const agents = stateDirectory(env);
+  return agents ? path.join(path.dirname(agents), "pings") : undefined;
+}
+
+/** How often a session looks for a ping. */
+export const PingPollMilliseconds = 10_000;
+
+/** A ping older than this is not worth acting on: the tray may have died. */
+export const PingMaxAgeMilliseconds = 5 * 60 * 1000;
+
+/**
+ * The one decision about a ping: send it, or drop it and say why. Pure, so every
+ * branch is a test rather than an observation.
+ */
+export function pingAction(state, ping, now = Date.now()) {
+  if (!ping || typeof ping.prompt !== "string" || ping.prompt.length === 0) {
+    return { action: "skip", reason: "unreadable" };
+  }
+
+  const at = typeof ping.at === "string" ? Date.parse(ping.at) : Number.NaN;
+  if (!Number.isFinite(at) || now - at > PingMaxAgeMilliseconds) {
+    return { action: "skip", reason: "stale" };
+  }
+
+  // A session that is mid-run or waiting on the user is skipped rather than
+  // queued: a ping that lands inside a run you started is a surprise.
+  if (state === "working" || state === "blocked") {
+    return { action: "skip", reason: "busy" };
+  }
+
+  return { action: "send", text: ping.prompt };
+}
+
+/**
+ * Reads this session's ping file, deletes it, and sends it when it is still
+ * worth sending. Deleting before sending means a failing send cannot loop.
+ */
+export function pollPings({ directory, sessionId, state, send, now = Date.now() }) {
+  if (!directory || !isPlainSessionId(sessionId)) {
+    return { action: "skip", reason: "nothing" };
+  }
+
+  const file = path.join(directory, `${sessionId}.json`);
+  let ping;
+  try {
+    ping = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    ping = undefined;
+  }
+
+  if (ping !== undefined) {
+    try {
+      fs.unlinkSync(file);
+    } catch {
+      // The tray may have rewritten it; the next poll reads that one.
+    }
+  }
+
+  const decision = ping ? pingAction(state, ping, now) : { action: "skip", reason: "nothing" };
+  if (decision.action === "send") {
+    send(decision.text);
+  }
+
+  return decision;
+}
+
 export function initialState() {
   return { state: "idle", detail: undefined, runActive: false, outcome: undefined };
 }
@@ -117,11 +188,46 @@ export default function piclaw(pi) {
   if (!directory) {
     return;
   }
-
   let sessionId;
   let fileName;
+  let pollTimer;
+  const pings = pingDirectory();
   let current = initialState();
   let reporting = false;
+
+  const stopPolling = () => {
+    if (pollTimer) {
+      clearTimeout(pollTimer);
+      pollTimer = undefined;
+    }
+  };
+
+  const poll = () => {
+    if (!reporting) {
+      return;
+    }
+
+    try {
+      pollPings({
+        directory: pings,
+        sessionId,
+        state: current.state,
+        send: (text) =>
+          pi.sendMessage(
+            { customType: "piclaw-ping", content: text, display: true },
+            { triggerTurn: true },
+          ),
+      });
+    } catch {
+      // A ping that cannot be delivered must not break the session that was
+      // going to receive it.
+    }
+
+    if (reporting) {
+      pollTimer = setTimeout(poll, PingPollMilliseconds);
+      pollTimer.unref?.();
+    }
+  };
 
   const flush = (ctx) => {
     if (!reporting || !fileName) {
@@ -159,6 +265,11 @@ export default function piclaw(pi) {
       current = initialState();
       reporting = true;
       flush(ctx);
+
+      // A ping may have been written while this session was closed, so the first
+      // look happens now, not one interval from now.
+      stopPolling();
+      poll();
     } catch {
       reporting = false;
     }
@@ -191,6 +302,7 @@ export default function piclaw(pi) {
     } catch {
       // Nothing to report and nobody to tell.
     } finally {
+      stopPolling();
       reporting = false;
       fileName = undefined;
     }

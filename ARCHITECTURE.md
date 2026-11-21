@@ -34,7 +34,7 @@ flowchart TB
   user(["Person: You"])
 
   subgraph piclaw["piclaw"]
-    app["Piclaw.exe<br/>C# .NET 10, NativeAOT<br/>tray icon, tooltip, menu, poll"]
+    app["Piclaw.exe<br/>C# .NET 10, NativeAOT<br/>tray icon, status panel, poll"]
     ext["pi extension<br/>piclaw.js, plain ESM<br/>reports one state per session"]
     store[("state directory<br/>%LOCALAPPDATA%/piclaw/agents<br/>one JSON file per session")]
   end
@@ -45,7 +45,7 @@ flowchart TB
   user -->|"click, Start with Windows, Quit"| app
   app -->|"Shell_NotifyIcon, Win32"| os
   app -->|"one Run value, HKCU"| os
-  os -->|"icon, tooltip, panel"| user
+  os -->|"icon and panel"| user
   pi -->|"loads"| ext
   ext -->|"writes one file per transition"| store
   app -->|"reads every second, deletes what ended"| store

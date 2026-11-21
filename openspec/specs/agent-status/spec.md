@@ -33,19 +33,8 @@ SHALL NOT show it, and it SHALL remove the state that session left behind.
 #### Scenario: an ended session is not shown and its state is removed
 
 - **WHEN** a session's process has ended and its state is still on disk
-- **THEN** the session is absent from the indicator, the tooltip, and the panel,
-  and the leftover state is removed
-
-### Requirement: The tooltip counts sessions by state
-
-The tooltip SHALL name the number of live sessions in each state that has at
-least one, in the order failed, waiting, working, done, quiet, and SHALL say so
-plainly when no session is live.
-
-#### Scenario: the tooltip counts sessions by state
-
-- **WHEN** two live sessions are working and one is waiting for the user
-- **THEN** the tooltip names two working and one waiting
+- **THEN** the session is absent from the indicator and the panel, and the
+  leftover state is removed
 
 ### Requirement: A state change appears within two seconds
 

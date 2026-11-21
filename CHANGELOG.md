@@ -5,6 +5,8 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- Hovering the tray icon no longer shows a tooltip. The session counts are on the
+  panel's summary line, where you open them on purpose.
 - piclaw can start with Windows. The panel has a Start with Windows control that
   turns it on and off, with no administrator and no settings file, and the entry
   follows the exe if you move or rebuild it.

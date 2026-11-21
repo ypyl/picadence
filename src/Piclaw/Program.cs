@@ -25,7 +25,6 @@ internal static class Program
 
     private static IReadOnlyList<AgentSession> _sessions = [];
     private static AgentState _shownState = AgentState.Idle;
-    private static string _shownTooltip = string.Empty;
 
     [UnmanagedCallersOnly]
     private static nint WindowProc(nint hwnd, int message, nint wParam, nint lParam)
@@ -64,14 +63,11 @@ internal static class Program
         _sessions = Store.ReadAll(DateTimeOffset.UtcNow);
 
         var state = AgentStatus.Aggregate(_sessions);
-        var tooltip = AgentStatus.Tooltip(_sessions);
-        if (state != _shownState || tooltip != _shownTooltip)
+        if (state != _shownState)
         {
             _shownState = state;
-            _shownTooltip = tooltip;
             _icon.hIcon = Icons[state];
-            _icon.szTip = tooltip;
-            _icon.uFlags = Native.NIF_MESSAGE | Native.NIF_ICON | Native.NIF_TIP;
+            _icon.uFlags = Native.NIF_MESSAGE | Native.NIF_ICON;
             Native.Shell_NotifyIconW(Native.NIM_MODIFY, ref _icon);
         }
 
@@ -142,16 +138,17 @@ internal static class Program
             return 1;
         }
 
-        _shownTooltip = "piclaw - no agent sessions";
         _icon = new Native.NotifyIconData
         {
             cbSize = Marshal.SizeOf<Native.NotifyIconData>(),
             hWnd = _window,
             uID = 1,
-            uFlags = Native.NIF_MESSAGE | Native.NIF_ICON | Native.NIF_TIP,
+            // No NIF_TIP: the panel header carries the counts, and a hover text
+            // that appears unbidden only covers what is behind the icon.
+            uFlags = Native.NIF_MESSAGE | Native.NIF_ICON,
             uCallbackMessage = TrayCallbackMessage,
             hIcon = Icons[AgentState.Idle],
-            szTip = _shownTooltip,
+            szTip = string.Empty,
         };
 
         if (!Native.Shell_NotifyIconW(Native.NIM_ADD, ref _icon))

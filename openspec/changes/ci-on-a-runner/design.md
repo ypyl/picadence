@@ -67,6 +67,21 @@ version is a tag, cut from a trunk tip, and this workflow does not cut one.
 | `bash` is not the default shell on a Windows runner | known: the default is pwsh | every script step names `bash` |
 | The image's .NET SDK moves under us | Project facts pins 10.0.404 | the workflow takes whatever the image ships, and the first run records which |
 
+## What the first runs found
+
+The image's default SDK is 11.0.100, not the 10.0.404 in Project facts. The
+net10.0 build, the format check, the AOT link and both suites pass under it. A
+`global.json` pinning 10.0.404 was written, proved by a run that reported
+10.0.404, and then dropped on the human's decision, because ADR 0003 says the SDK
+comes from the image. So this machine compiles with 10.0.404 and the runner with
+11.0.100, and the `Record the toolchain` step prints both on every run. The day
+they disagree, the log names the compiler that did it, and the pin comes back as
+its own change.
+
+Everything else the runner did, it did the same as this machine: `All checks
+passed, 0 warning(s).`, 114 .NET tests, 13 node tests, and the AOT link, with no
+interop problem from the missing desktop.
+
 ## What it deliberately does not do
 
 - No release, no tag, no upload to a release.

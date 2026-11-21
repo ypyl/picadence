@@ -713,10 +713,14 @@ workflow started by hand is `gh workflow run <file>`, and that file has to
 declare `workflow_dispatch`, because gh refuses one that does not.
 `scripts/check-change.sh` checks both when the Trigger names a workflow.
 
-- Trigger:
-- Wait:
-- Status:
-- Logs:
+- Trigger: git push
+- Wait: gh run watch $(gh run list --branch "$(git branch --show-current)" --limit 1 --json databaseId --jq '.[0].databaseId') --exit-status
+- Status: gh run list --limit 1
+- Logs: gh run view $(gh run list --limit 1 --json databaseId --jq '.[0].databaseId') --log-failed
+
+`ci.yml` also declares `workflow_dispatch`, so `gh workflow run ci.yml` starts a
+run by hand. The workflow is on every branch, not only trunk, so the run the loop
+reads is always the head of the change branch.
 
 ### Deploy
 

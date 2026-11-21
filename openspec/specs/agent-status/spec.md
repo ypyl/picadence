@@ -96,7 +96,7 @@ process left behind, and it SHALL open no network connection.
 The panel SHALL list every live session, the most recently changed first, each
 row naming the session's folder, its state in words, and how long ago it
 changed, with a colour that repeats the state. It SHALL end with its controls: a
-way to start piclaw with Windows, and a way to quit. A left click on a session
+way to start picadence with Windows, and a way to quit. A left click on a session
 row SHALL take no action.
 
 #### Scenario: the panel lists each session with its folder, state, and age
@@ -182,15 +182,15 @@ Every state SHALL be named in words as well as shown in colour.
 
 The panel SHALL offer a control that turns starting with Windows on and off, and
 SHALL show whether it is currently on. Turning it on SHALL make Windows start
-piclaw when the user signs in; turning it off SHALL stop that. The control SHALL
-need no elevation and SHALL affect only the current user.
+picadence when the user signs in; turning it off SHALL stop that. The control
+SHALL need no elevation and SHALL affect only the current user.
 
 #### Scenario: the autostart control turns it on and off
 
 - **WHEN** the user clicks the start-with-Windows control while it is off, and
   then clicks it again
-- **THEN** it reads on and Windows is set to start piclaw, and then it reads off
-  and that setting is gone
+- **THEN** it reads on and Windows is set to start picadence, and then it reads
+  off and that setting is gone
 
 ### Requirement: The registration follows the app
 

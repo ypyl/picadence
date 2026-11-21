@@ -9,6 +9,9 @@ screen, so the answer is one glance away.
 
 It can also wake a session for you, on a cadence you pick.
 
+![The picadence panel: three sessions, one working, one waiting for an answer, one
+failed, with the age of each change and the two controls](docs/panel.png)
+
 ## What the icon means
 
 | Colour | Meaning |
@@ -38,6 +41,9 @@ that entry itself.
 Right-click a session row and pick a cadence: every 15 minutes, every hour, every
 week, every month, every year, or off. The row then reads `every hour, next in
 24m`.
+
+![The Repeat ping menu open on a session row, listing the five cadences and
+off](docs/repeat-ping.png)
 
 When the time comes and the session is idle, picadence sends it one message. The
 message names picadence, the time and the cadence, and asks the session to follow

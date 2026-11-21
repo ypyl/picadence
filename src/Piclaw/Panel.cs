@@ -604,6 +604,16 @@ internal static class Panel
             Native.FillRect(dc, ref box, Brush(PanelTheme.Surface));
             Native.FrameRect(dc, ref box, Brush(PanelTheme.Outline));
 
+            Text(dc, flyout.Header, flyout.HeaderBounds, 12, Native.FW_SEMIBOLD, PanelTheme.PrimaryText,
+                Native.DT_LEFT | Native.DT_VCENTER | Native.DT_SINGLELINE);
+
+            var rule = Scaled(new DipRect(
+                flyout.HeaderBounds.X,
+                flyout.HeaderBounds.Y + flyout.HeaderBounds.Height,
+                flyout.HeaderBounds.Width,
+                PanelModel.FlyoutRule));
+            Native.FillRect(dc, ref rule, Brush(PanelTheme.Outline));
+
             foreach (var item in flyout.Items)
             {
                 if (_hoveredCadence == item.Cadence)

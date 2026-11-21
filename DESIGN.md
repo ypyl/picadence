@@ -86,6 +86,8 @@ spacing values in `PanelModel`.
 | `FlyoutWidth` | 180 | wide enough for "every 15 minutes" and no wider |
 | `FlyoutItemHeight` | 30 | one cadence: a list item, not a control |
 | `FlyoutPadding` | 6 | the list's own edge to its first item |
+| `FlyoutHeaderHeight` | 24 | the heading's row, so the list says what it is |
+| `FlyoutRule` | 1 | the hairline between the heading and the cadences |
 
 ### Type
 
@@ -96,6 +98,7 @@ spacing values in `PanelModel`.
 | session folder | 14 | regular | Segoe UI Variable Text |
 | session state, detail, age | 12 | regular | Segoe UI Variable Text |
 | a cadence in the list | 12 | regular, semibold when chosen | Segoe UI Variable Text |
+| the list heading | 12 | semibold (600) | Segoe UI Variable Text |
 | control label, value | 12 | regular | Segoe UI Variable Text |
 
 Body is 14, caption is 12, and nothing else is used. `Segoe UI` is the fallback
@@ -145,8 +148,13 @@ by hand reads as a mistake.
 - The cadence list is 180 wide and sits on the row it belongs to, right edges
   aligned, moved up when it would cross the bottom of the panel. It is painted
   inside the panel's own window, over the rows, with the same surface and outline
-  as the panel. The chosen cadence is the only item in full white and semibold; a
-  pointer over an item fills it with the hover token.
+  as the panel.
+- The list opens with a heading, `Repeat ping`, in the same 12 semibold the panel
+  title uses, over a 1px rule in the outline colour. Six bare cadences read as a
+  mystery the first time; one line of naming makes it a decision. The heading is
+  a label and not a choice, so a click on it closes the list and arms nothing.
+- The chosen cadence is the only item in full white and semibold; a pointer over
+  an item fills it with the hover token.
 - The list exists because a real popup menu would take activation, and the panel
   closes when it loses activation. It also keeps the dark surface, which the shell
   menu would not.

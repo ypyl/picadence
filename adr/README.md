@@ -10,6 +10,7 @@ the old one Superseded.
 | ADR | Title | Status |
 |---|---|---|
 | [0001](0001-native-tray-fed-by-pi-extension.md) | A native tray app fed by a pi extension | Accepted |
+| [0002](0002-the-tray-may-wake-a-session.md) | The tray may wake a session on a cadence | Proposed |
 
 ## Adding a decision
 

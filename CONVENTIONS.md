@@ -6,7 +6,7 @@ with no trigger is ignored. The ownership rule and how to add one are in
 
 ## Formatting and naming
 
-`dotnet format piclaw.sln --verify-no-changes` decides formatting, and
+`dotnet format picadence.sln --verify-no-changes` decides formatting, and
 `.editorconfig` is the only place its settings change. Trigger: a build that
 rewrites a file nobody edited.
 
@@ -36,7 +36,7 @@ and a different change. Trigger: a call that opens a key outside the user's hive
 
 ## The pi side
 
-`extensions/piclaw.js` is plain ESM with no build step, because pi loads it
+`extensions/picadence.js` is plain ESM with no build step, because pi loads it
 directly and `node --test` has to import the same file. Trigger: an import that
 needs compiling.
 

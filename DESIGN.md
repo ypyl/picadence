@@ -2,7 +2,7 @@
 
 The visual language of the panel: what it looks like, why each number is that
 number, and where those numbers live in the code. Read this before changing how
-piclaw looks. Behavior is in `openspec/specs/`, decisions are in `adr/`, and this
+picadence looks. Behavior is in `openspec/specs/`, decisions are in `adr/`, and this
 file is only about appearance.
 
 The panel is one small surface: a flyout anchored to a tray icon, read for two

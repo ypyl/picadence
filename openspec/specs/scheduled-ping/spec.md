@@ -44,19 +44,6 @@ window SHALL count as missed.
 - **THEN** no message arrives, the session stays as it was, and the missed count
   goes up by one
 
-### Requirement: The wake-up comes from piclaw, not from the user
-
-The message that wakes a session SHALL name piclaw, the time, and the armed
-cadence, and SHALL ask the session to follow its own standing instruction. It
-SHALL carry no instruction of its own. It SHALL appear as a message from piclaw
-and never as something the user typed.
-
-#### Scenario: the wake-up names piclaw and the cadence and gives no instruction
-
-- **WHEN** a session is woken by its cadence
-- **THEN** the message names piclaw, the time and the cadence, asks for the
-  session's standing instruction, and asks for nothing else
-
 ### Requirement: A cadence belongs to one session
 
 A cadence SHALL survive a tray restart, a reboot, and a session that is resumed
@@ -108,3 +95,16 @@ been absent, and SHALL remove it only when the user turns it off.
 - **WHEN** a session armed with every week has not run for a year
 - **THEN** the cadence is still armed, and it wakes that session once when it
   returns
+
+### Requirement: The wake-up comes from picadence, not from the user
+
+The message that wakes a session SHALL name picadence, the time, and the armed
+cadence, and SHALL ask the session to follow its own standing instruction. It
+SHALL carry no instruction of its own. It SHALL appear as a message from
+picadence and never as something the user typed.
+
+#### Scenario: the wake-up names picadence and the cadence and gives no instruction
+
+- **WHEN** a session is woken by its cadence
+- **THEN** the message names picadence, the time and the cadence, asks for the
+  session's standing instruction, and asks for nothing else

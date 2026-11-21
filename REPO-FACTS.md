@@ -15,20 +15,20 @@ Rules:
 
 ## Commands
 
-- `dotnet build piclaw.sln -c Release` finished in 4 s with 0 warnings and 0
+- `dotnet build picadence.sln -c Release` finished in 4 s with 0 warnings and 0
   errors, on this machine, 2026-11-20.
-- `dotnet test piclaw.sln -c Release` reported 62 passed, 0 failed, 76 ms,
+- `dotnet test picadence.sln -c Release` reported 62 passed, 0 failed, 76 ms,
   2026-11-20 (26 before the agent-status change).
-- `dotnet test piclaw.sln -c Release` reported 111 passed, 0 failed, 74 ms after
+- `dotnet test picadence.sln -c Release` reported 111 passed, 0 failed, 74 ms after
   the scheduled-ping change, 2026-11-21. `node --test
-  extensions/piclaw.test.mjs` reported 13 passed, up from 7.
-- `dotnet format piclaw.sln --verify-no-changes` exited 0 after `.editorconfig`
+  extensions/picadence.test.mjs` reported 13 passed, up from 7.
+- `dotnet format picadence.sln --verify-no-changes` exited 0 after `.editorconfig`
   was added, 2026-11-20.
-- `dotnet run --project src/Piclaw -c Release` started the tray and the child
+- `dotnet run --project src/Picadence -c Release` started the tray and the child
   process stayed alive past 6 s, 2026-11-20. It runs the JIT build, so it costs
   about 19 MB; the AOT publish is the build a user runs.
-- `dotnet publish src/Piclaw/Piclaw.csproj -c Release` produced one
-  `Piclaw.exe` of 1,556,480 bytes, with no runtime dependency, 2026-11-20. It
+- `dotnet publish src/Picadence/Picadence.csproj -c Release` produced one
+  `Picadence.exe` of 1,556,480 bytes, with no runtime dependency, 2026-11-20. It
   needs the MSVC linker; without Visual Studio Build Tools the AOT step fails.
   Reading state added `System.Text.Json`, which took the exe from 876,032 bytes.
 - The same publish after the scheduled-ping change produced 1,751,552 bytes, and
@@ -56,10 +56,10 @@ Rules:
   creep is the GC's budget meeting the allocation rate.
 - The JIT build measured 19.98 MB working set against the AOT build's 11 MB,
   which is why the release build is AOT.
-- `node --test extensions/piclaw.test.mjs` reported 7 passed, 0 failed,
+- `node --test extensions/picadence.test.mjs` reported 7 passed, 0 failed,
   2026-11-20. `node --test extensions` does not work on Node 22.23: it treats the
   directory as a module. Name the file.
-- `dotnet list piclaw.sln package --vulnerable --include-transitive` reported
+- `dotnet list picadence.sln package --vulnerable --include-transitive` reported
   no vulnerable package in either project, 2026-11-20.
 
 ## Tray messages

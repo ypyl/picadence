@@ -5,11 +5,15 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- The tool is called picadence. The name it carried, piclaw, is another pi
+  project by another author, and "claw" has meant nothing for a while. Nothing
+  changes except what you read and where the exe lives; a schedule you armed
+  keeps its cadence, and the old `%LOCALAPPDATA%\piclaw` folder is left alone.
 - A session can be armed with a cadence. Right-click a row and pick every 15
   minutes, every hour, every week, every month, every year, or off. When the time
   comes, the session wakes itself, follows whatever standing instruction it was
-  given, and piclaw tells you on the row when the next one is due.
-- A cadence belongs to a session and survives a restart of piclaw, a reboot, and
+  given, and picadence tells you on the row when the next one is due.
+- A cadence belongs to a session and survives a restart of picadence, a reboot, and
   a session you resume, so a periodic job keeps running across your day without
   you remembering to type anything.
 - The two controls at the foot of the panel now have real padding and a taller
@@ -18,10 +22,10 @@ are in `AGENTS.md` under **Versions and changelog**.
   contrast floor.
 - Hovering the tray icon no longer shows a tooltip. The session counts are on the
   panel's summary line, where you open them on purpose.
-- piclaw can start with Windows. The panel has a Start with Windows control that
+- picadence can start with Windows. The panel has a Start with Windows control that
   turns it on and off, with no administrator and no settings file, and the entry
   follows the exe if you move or rebuild it.
-- The product is called piclaw. Same tray, same panel, new name: the exe, the pi
+- The product is called picadence. Same tray, same panel, new name: the exe, the pi
   extension, and the state folder follow it.
 - Quit now looks like a button: hovering it paints a highlight and turns the
   pointer into a hand.
@@ -37,4 +41,4 @@ are in `AGENTS.md` under **Versions and changelog**.
   for a session waiting on you, green for work in progress, grey when nothing
   needs you. The tooltip counts sessions by state, and the menu lists each one
   with its folder, its state, and how long ago it changed.
-- piclaw starts: the project, its stack, and its tests.
+- picadence starts: the project, its stack, and its tests.

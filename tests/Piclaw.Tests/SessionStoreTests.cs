@@ -51,6 +51,31 @@ public sealed class SessionStoreTests : IDisposable
         Assert.Equal(before, File.ReadAllText(livePath));
     }
 
+    [Fact(DisplayName = "an unchanged state file is not read again")]
+    public void An_unchanged_state_file_is_not_read_again()
+    {
+        var name = WriteFile(500, "working");
+        var path = Path.Combine(_directory, name);
+        var store = new SessionStore(_directory, _ => true);
+
+        var first = Assert.Single(store.ReadAll(Now));
+        var second = Assert.Single(store.ReadAll(Now.AddSeconds(1)));
+        Assert.Same(first, second);
+
+        // A different length is a different file, so it is parsed again.
+        WriteFile(500, "idle");
+        var third = Assert.Single(store.ReadAll(Now.AddSeconds(2)));
+        Assert.NotSame(second, third);
+        Assert.Equal(AgentState.Idle, third.State);
+
+        // The same bytes with a new write time are also parsed again, which is how
+        // a transition the shell reports late still arrives on the next tick.
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(1));
+        var fourth = Assert.Single(store.ReadAll(Now.AddSeconds(3)));
+        Assert.NotSame(third, fourth);
+        Assert.Equal(AgentState.Idle, fourth.State);
+    }
+
     [Fact]
     public void A_file_that_cannot_be_parsed_is_ignored()
     {

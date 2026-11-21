@@ -91,8 +91,10 @@ dotnet publish src/Piclaw/Piclaw.csproj -c Release
 ```
 
 That lands in `src/Piclaw/bin/Release/net10.0/win-x64/publish/Piclaw.exe`,
-about 1.5 MB, and runs at roughly 3.4 MB of private memory and 11 MB of working
-set.
+about 1.8 MB, and it costs a few megabytes to run: with five sessions, around
+12 MB of working set and 4 MB of private memory, drifting up slowly as garbage
+accumulates and back down when the collector runs. It holds nothing it does not
+need, because a session's state is parsed again only when pi rewrites it.
 
 ## What it is not
 

@@ -42,18 +42,24 @@ Rules:
   DPI-unaware one sees 400 physical pixels as 320 and saves a cropped image that
   looks like a layout bug; `SetProcessDPIAware` in the capture script fixed it,
   2026-11-20.
-- The published exe, idle with one tray icon: 10.35 MB working set and 3.11 MB
-  private bytes after 10 s, measured with `Get-Process`, 2026-11-20. An earlier
-  run of the same shape read 11.00 MB and 3.16 MB, so treat ~11 MB working set
-  and ~3 MB private as the figure. The same source through the JIT measured
-  19.98 MB working set, which is why the release build is AOT.
-- The same exe with one live session and one dead session on disk read 11.18 MB
-  working set and 3.42 MB private after 6 s, and removed the dead session's file
-  while leaving the live one, 2026-11-20. That is the whole poll and liveness
-  path running against real files.
+- Memory: the ten-second figures read on 2026-11-20 (3.1 to 3.4 MB private,
+  about 11 MB working set, one session) are warm-up samples and `README.md`
+  quoted them as if they were the product's cost. The same exe with one dead and
+  one live session read 11.18 MB and 3.42 MB at 6 s and removed the dead file,
+  which is the poll and liveness path working, not its steady state.
+- Steady state, five live sessions, sampled every 20 s for nine minutes on
+  2026-11-21: 16.4 MB private and 28.6 MB working set before the state parse
+  cache, about 7.2 MB and 19 MB after it, both still creeping a few hundred
+  kilobytes a minute when sampling stopped. Nothing is retained: a build that
+  forces a full collection every 15 s reports a live managed heap of 56 KB,
+  flat, 800 KB committed, private bytes flat at 4.16 MB for five minutes. The
+  creep is the GC's budget meeting the allocation rate.
+- The JIT build measured 19.98 MB working set against the AOT build's 11 MB,
+  which is why the release build is AOT.
 - `node --test extensions/piclaw.test.mjs` reported 7 passed, 0 failed,
   2026-11-20. `node --test extensions` does not work on Node 22.23: it treats the
-  directory as a module. Name the file.- `dotnet list piclaw.sln package --vulnerable --include-transitive` reported
+  directory as a module. Name the file.
+- `dotnet list piclaw.sln package --vulnerable --include-transitive` reported
   no vulnerable package in either project, 2026-11-20.
 
 ## Tray messages
@@ -88,7 +94,7 @@ Rules:
 
 ## Generated files
 
-- `packages.lock.json` per project, written by `dotnet restore` because
+- ``packages.lock.json` per project, written by `dotnet restore` because
   `Directory.Build.props` sets `RestorePackagesWithLockFile`. Committed on
   purpose; `dotnet restore --locked-mode` fails when a package moves without the
   file.

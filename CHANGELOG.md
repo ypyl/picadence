@@ -5,6 +5,8 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+## picadence-v0.1.0
+
 - The tool is called picadence. The name it carried, piclaw, is another pi
   project by another author, and "claw" has meant nothing for a while. Nothing
   changes except what you read and where the exe lives; a schedule you armed
@@ -25,8 +27,6 @@ are in `AGENTS.md` under **Versions and changelog**.
 - picadence can start with Windows. The panel has a Start with Windows control that
   turns it on and off, with no administrator and no settings file, and the entry
   follows the exe if you move or rebuild it.
-- The product is called picadence. Same tray, same panel, new name: the exe, the pi
-  extension, and the state folder follow it.
 - Quit now looks like a button: hovering it paints a highlight and turns the
   pointer into a hand.
 - The age in a session row no longer touches the edge of its box, so it stops

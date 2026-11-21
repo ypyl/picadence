@@ -32,8 +32,8 @@ around focus, and consistent because the same few values are reused everywhere.
 |---|---|---|
 | surface | `#202020` | panel background |
 | row | `#2B2B2B` | session row |
-| hover | `#3A3A3A` | control under the pointer |
-| outline | `#3A3A3A` | the panel's 1px edge |
+| hover | `#3A3A3A` | control or cadence under the pointer |
+| outline | `#3A3A3A` | the panel's 1px edge, and the cadence list's |
 | text primary | `#FFFFFF` | folder, control label |
 | text secondary | `#C5C5C5` | state, detail, age, control value |
 
@@ -79,6 +79,14 @@ spacing values in `PanelModel`.
 | `ActionPadding` | 12 | label and value inside the fill |
 | `RowPadding` | 12 | the age inside the row's right edge |
 
+### Cadence list
+
+| Token | Value | Where |
+|---|---|---|
+| `FlyoutWidth` | 180 | wide enough for "every 15 minutes" and no wider |
+| `FlyoutItemHeight` | 30 | one cadence: a list item, not a control |
+| `FlyoutPadding` | 6 | the list's own edge to its first item |
+
 ### Type
 
 | Role | Size | Weight | Face |
@@ -87,6 +95,7 @@ spacing values in `PanelModel`.
 | header summary | 12 | regular (400) | Segoe UI Variable Text |
 | session folder | 14 | regular | Segoe UI Variable Text |
 | session state, detail, age | 12 | regular | Segoe UI Variable Text |
+| a cadence in the list | 12 | regular, semibold when chosen | Segoe UI Variable Text |
 | control label, value | 12 | regular | Segoe UI Variable Text |
 
 Body is 14, caption is 12, and nothing else is used. `Segoe UI` is the fallback
@@ -128,10 +137,19 @@ by hand reads as a mistake.
 ```
 
 - A session row is 44 tall: an 8 dot at 8 from the left, a 14 folder, a 12 state
-  line under it, and a 12 age right-aligned 12 from the row's edge.
+  line under it, and a 12 age right-aligned 12 from the row's edge. An armed row
+  adds its cadence to that state line: `done · every hour, next in 24m`.
 - A control is 32 tall, which is Fluent's medium control height. Its hover fill
   is inset 2 from the row, its label starts 12 inside the fill, and its value ends
   12 inside the fill. Nothing in a button touches the button's edge.
+- The cadence list is 180 wide and sits on the row it belongs to, right edges
+  aligned, moved up when it would cross the bottom of the panel. It is painted
+  inside the panel's own window, over the rows, with the same surface and outline
+  as the panel. The chosen cadence is the only item in full white and semibold; a
+  pointer over an item fills it with the hover token.
+- The list exists because a real popup menu would take activation, and the panel
+  closes when it loses activation. It also keeps the dark surface, which the shell
+  menu would not.
 - The panel caps at 8 session rows and says how many are not shown. A flyout that
   covers the screen is worse than one that admits it is short.
 - The panel opens above the icon, right edges aligned, flipped below when there is
@@ -143,10 +161,13 @@ by hand reads as a mistake.
 |---|---|---|---|---|
 | session row | row fill | row fill (not a control) | none | none |
 | control | no fill, plain text | hover fill, hand pointer | commits on click, no dwell | none |
+| cadence item | surface, secondary text | hover fill, hand pointer | commits on click | none |
 | panel | surface, 1px outline | — | — | — |
 
 Hover exists to say "this is clickable". It appears on pointer entry, clears on
-pointer leave, and never appears on a session row, because a row does nothing.
+pointer leave, and never appears on a session row, because a row does nothing on
+a left click. The cadence list is opened by a right click, and only then does a
+row lead anywhere.
 
 **Known gap:** there is no keyboard focus and no focus ring. The panel is opened
 by pointer and closed by Escape; a keyboard user can close it but cannot reach a

@@ -7,6 +7,8 @@ You run pi in a few tabs. When one finishes, or stops to ask you something, you
 find out when you alt-tab back to it. piclaw puts that on the edge of the
 screen, so the answer is one glance away.
 
+It can also wake a session for you, on a cadence you pick.
+
 ## What the icon means
 
 | Colour | Meaning |
@@ -30,6 +32,32 @@ starts piclaw when you sign in. Click it again to stop. It writes one value unde
 your own user's `Run` key (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`),
 needs no administrator, and if piclaw later runs from another path it corrects
 that entry itself.
+
+## Wake a session on a cadence
+
+Right-click a session row and pick a cadence: every 15 minutes, every hour, every
+week, every month, every year, or off. The row then reads `every hour, next in
+24m`.
+
+When the time comes and the session is idle, piclaw sends it one message. The
+message names piclaw, the time and the cadence, and asks the session to follow
+its own standing instructions. It carries no instruction of its own: a session
+meant to check the news every hour carries that instruction itself, in its
+conversation or in a file it can read, and it is that session's business.
+
+What follows from that:
+
+- Only a session running in a tab is woken. piclaw starts nothing, so a closed
+  tab is never woken, and the windows it missed are counted.
+- A session that is working, or waiting for your answer, is skipped rather than
+  queued behind the run you started.
+- A gap produces one wake-up, and the message says how many windows it missed.
+- The cadence belongs to the session, not to the process. It survives a restart
+  of piclaw, a reboot, and a session you resume. Resume with `pi -c`, `pi
+  --resume`, or `pi --session-id <id>`: a brand new session is a different
+  session, so it is never woken.
+- Turning a cadence off deletes it, and nothing else ever does. A cadence that
+  fires once a year looks abandoned for the rest of it, and that is fine.
 
 ## Install the pi side
 
@@ -68,8 +96,9 @@ set.
 
 ## What it is not
 
-- Not an orchestrator. It never sends input to pi, and never starts or stops a
-  tab.
+- Not an orchestrator. It cannot type into a session, press a key in one, or
+  start or stop one. The only thing it may send is a scheduled wake-up to a
+  session you armed by hand, and only while that session is running.
 - Not cross-platform, and not a web app.
 - No history, no analytics, no cloud, no account, no network call at all.
 - It cannot tell you which tab a session is in: Windows Terminal exposes no such

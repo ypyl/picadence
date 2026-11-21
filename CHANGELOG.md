@@ -5,6 +5,13 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- A session can be armed with a cadence. Right-click a row and pick every 15
+  minutes, every hour, every week, every month, every year, or off. When the time
+  comes, the session wakes itself, follows whatever standing instruction it was
+  given, and piclaw tells you on the row when the next one is due.
+- A cadence belongs to a session and survives a restart of piclaw, a reboot, and
+  a session you resume, so a periodic job keeps running across your day without
+  you remembering to type anything.
 - The two controls at the foot of the panel now have real padding and a taller
   hit area, so a hovered one reads as a button instead of a highlighted row.
 - `DESIGN.md` records the visual language: tokens, spacing, type, states, and the

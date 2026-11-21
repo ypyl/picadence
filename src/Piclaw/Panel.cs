@@ -26,11 +26,23 @@ internal static class Panel
     /// <summary>The control under the pointer, or null.</summary>
     private static PanelAction? _hovered;
 
+    /// <summary>The cadence under the pointer while the list is open.</summary>
+    private static Cadence? _hoveredCadence;
+
     /// <summary>Whether the tray is registered to start with Windows.</summary>
     private static bool _autostartOn;
 
+    /// <summary>The session whose cadence list is open, or null.</summary>
+    private static SessionRef? _flyoutFor;
+
     /// <summary>The last sessions read, so a toggle can repaint without the store.</summary>
     private static IReadOnlyList<AgentSession> _sessions = [];
+
+    /// <summary>The cadences of those sessions, by session.</summary>
+    private static Dictionary<SessionRef, Schedule> _schedules = [];
+
+    /// <summary>The moment the layout was built for, so a choice can time its first ping.</summary>
+    private static DateTimeOffset _now = DateTimeOffset.Now;
 
     public static unsafe void Register(nint instance)
     {
@@ -55,11 +67,15 @@ internal static class Panel
     };
 
     /// <summary>Opens the panel above the icon, or closes it when it is open.</summary>
-    public static void Toggle(IReadOnlyList<AgentSession> sessions, DateTimeOffset now, nint owner)
+    public static void Toggle(
+        IReadOnlyList<AgentSession> sessions,
+        IReadOnlyDictionary<SessionRef, Schedule> schedules,
+        DateTimeOffset now,
+        nint owner)
     {
         if (PanelController.After(IsOpen, PanelInput.IconClicked))
         {
-            Show(sessions, now, owner);
+            Show(sessions, schedules, now, owner);
         }
         else
         {
@@ -68,7 +84,10 @@ internal static class Panel
     }
 
     /// <summary>Repaints while open, so a state change shows without a reopen.</summary>
-    public static void Update(IReadOnlyList<AgentSession> sessions, DateTimeOffset now)
+    public static void Update(
+        IReadOnlyList<AgentSession> sessions,
+        IReadOnlyDictionary<SessionRef, Schedule> schedules,
+        DateTimeOffset now)
     {
         if (!IsOpen)
         {
@@ -76,9 +95,16 @@ internal static class Panel
         }
 
         _sessions = sessions;
-        var next = PanelModel.Build(sessions, now, _autostartOn);
+        _schedules = new Dictionary<SessionRef, Schedule>(schedules);
+        _now = now;
+        var next = PanelModel.Build(sessions, now, _autostartOn, _schedules, _flyoutFor);
         var grew = Math.Abs(next.Height - _layout.Height) > 0.5 || Math.Abs(next.Width - _layout.Width) > 0.5;
         _layout = next;
+
+        if (next.Flyout is null)
+        {
+            _flyoutFor = null;
+        }
 
         if (grew)
         {
@@ -97,14 +123,23 @@ internal static class Panel
 
         IsOpen = false;
         _hovered = null;
+        _hoveredCadence = null;
+        _flyoutFor = null;
     }
 
-    private static void Show(IReadOnlyList<AgentSession> sessions, DateTimeOffset now, nint owner)
+    private static void Show(
+        IReadOnlyList<AgentSession> sessions,
+        IReadOnlyDictionary<SessionRef, Schedule> schedules,
+        DateTimeOffset now,
+        nint owner)
     {
         _owner = owner;
         _sessions = sessions;
+        _schedules = new Dictionary<SessionRef, Schedule>(schedules);
+        _now = now;
         _autostartOn = Autostart.Read() is not null;
-        _layout = PanelModel.Build(sessions, now, _autostartOn);
+        _flyoutFor = null;
+        _layout = PanelModel.Build(sessions, now, _autostartOn, _schedules);
 
         if (_window == 0)
         {
@@ -211,15 +246,27 @@ internal static class Panel
                 Hide();
                 return 0;
             case Native.WM_KEYDOWN when (int)wParam == Native.VK_ESCAPE:
-                Hide();
+                // The list is the nearer thing, so Escape closes it first and the
+                // panel second, the way a menu behaves.
+                if (_flyoutFor is null)
+                {
+                    Hide();
+                }
+                else
+                {
+                    _flyoutFor = null;
+                    Rebuild();
+                }
+
                 return 0;
             case Native.WM_MOUSEMOVE:
                 Move((short)(lParam & 0xFFFF), (short)((lParam >> 16) & 0xFFFF));
                 return 0;
             case Native.WM_MOUSELEAVE:
-                if (_hovered is not null)
+                if (_hovered is not null || _hoveredCadence is not null)
                 {
                     _hovered = null;
+                    _hoveredCadence = null;
                     Native.InvalidateRect(hwnd, 0, false);
                 }
 
@@ -230,6 +277,9 @@ internal static class Panel
             case Native.WM_LBUTTONUP:
                 Click((short)(lParam & 0xFFFF), (short)((lParam >> 16) & 0xFFFF));
                 return 0;
+            case Native.WM_RBUTTONUP:
+                RightClick((short)(lParam & 0xFFFF), (short)((lParam >> 16) & 0xFFFF));
+                return 0;
             default:
                 return Native.DefWindowProcW(hwnd, message, wParam, lParam);
         }
@@ -238,23 +288,29 @@ internal static class Panel
     /// <summary>Hover tracking, so a control looks clickable before it is clicked.</summary>
     private static void Move(int x, int y)
     {
-        var hit = _layout.HitTest(x / _scale, y / _scale);
+        var pointX = x / _scale;
+        var pointY = y / _scale;
+        var hit = _layout.HitTest(pointX, pointY);
         PanelAction? over = hit switch
         {
             PanelHit.Autostart => PanelAction.Autostart,
             PanelHit.Quit => PanelAction.Quit,
             _ => null,
         };
+        var overCadence = hit == PanelHit.Flyout && _layout.Flyout is { } flyout
+            ? ItemAt(flyout, pointX, pointY)?.Cadence
+            : null;
 
-        if (over == _hovered)
+        if (over == _hovered && overCadence == _hoveredCadence)
         {
             return;
         }
 
         _hovered = over;
+        _hoveredCadence = overCadence;
         Native.SetCursor(Cursor());
 
-        if (over is not null)
+        if (over is not null || overCadence is not null)
         {
             var tracking = new Native.TrackMouseEventData
             {
@@ -265,6 +321,88 @@ internal static class Panel
             Native.TrackMouseEvent(ref tracking);
         }
 
+        Native.InvalidateRect(_window, 0, false);
+    }
+
+    private static PanelFlyoutItem? ItemAt(PanelFlyout flyout, double x, double y)
+    {
+        foreach (var item in flyout.Items)
+        {
+            if (item.Bounds.Contains(x, y))
+            {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// A right click on a row opens its cadence list. Anywhere else closes the list
+    /// and does nothing else, so a stray click cannot arm something.
+    /// </summary>
+    private static void RightClick(int x, int y)
+    {
+        var pointX = x / _scale;
+        var pointY = y / _scale;
+        for (var index = 0; index < _layout.Rows.Count; index++)
+        {
+            if (_layout.Rows[index].Bounds.Contains(pointX, pointY))
+            {
+                _flyoutFor = _layout.Rows[index].Reference;
+                _hoveredCadence = null;
+                Rebuild();
+                return;
+            }
+        }
+
+        if (_flyoutFor is not null)
+        {
+            _flyoutFor = null;
+            Rebuild();
+        }
+    }
+
+    /// <summary>
+    /// Writes the chosen cadence for the row the list belongs to. Off removes the
+    /// record, which is the only way a cadence is ever deleted.
+    /// </summary>
+    private static void Choose(Cadence cadence)
+    {
+        if (_layout.Flyout is not { } flyout)
+        {
+            return;
+        }
+
+        var row = _layout.Rows[flyout.RowIndex];
+        var store = new ScheduleStore(Paths.Schedules);
+        if (cadence == Cadence.Off)
+        {
+            store.Remove(row.Reference.SessionId);
+            _schedules.Remove(row.Reference);
+        }
+        else
+        {
+            var schedule = new Schedule(
+                row.Reference.SessionId,
+                Name: null,
+                row.Folder,
+                cadence,
+                NextAt: cadence.Advance(_now),
+                LastIssuedAt: null,
+                Missed: 0);
+            store.Write(schedule);
+            _schedules[row.Reference] = schedule;
+        }
+
+        _flyoutFor = null;
+        _hoveredCadence = null;
+        Rebuild();
+    }
+
+    private static void Rebuild()
+    {
+        _layout = PanelModel.Build(_sessions, _now, _autostartOn, _schedules, _flyoutFor);
         Native.InvalidateRect(_window, 0, false);
     }
 
@@ -284,9 +422,30 @@ internal static class Panel
 
     private static void Click(int x, int y)
     {
+        var pointX = x / _scale;
+        var pointY = y / _scale;
+
+        // With the list open, it takes the click: a choice inside it, and anything
+        // else only dismisses it.
+        if (_layout.Flyout is { } flyout)
+        {
+            if (ItemAt(flyout, pointX, pointY) is { } item)
+            {
+                Choose(item.Cadence);
+            }
+            else
+            {
+                _flyoutFor = null;
+                _hoveredCadence = null;
+                Rebuild();
+            }
+
+            return;
+        }
+
         // A session row and empty space both do nothing: the panel reports, it
         // does not act on a session.
-        switch (_layout.HitTest(x / _scale, y / _scale))
+        switch (_layout.HitTest(pointX, pointY))
         {
             case PanelHit.Quit:
                 Hide();
@@ -303,7 +462,7 @@ internal static class Panel
                     Autostart.Remove();
                 }
 
-                _layout = PanelModel.Build(_sessions, DateTimeOffset.UtcNow, _autostartOn);
+                _layout = PanelModel.Build(_sessions, _now, _autostartOn, _schedules, _flyoutFor);
                 Native.InvalidateRect(_window, 0, false);
                 break;
         }
@@ -386,6 +545,11 @@ internal static class Panel
                 Native.DT_LEFT | Native.DT_SINGLELINE | Native.DT_END_ELLIPSIS);
 
             var state = string.IsNullOrEmpty(row.Detail) ? row.StateWord : $"{row.StateWord} ({row.Detail})";
+            if (row.Schedule is { Length: > 0 } schedule)
+            {
+                state = $"{state} · {schedule}";
+            }
+
             Text(dc, state, new DipRect(textLeft, row.Bounds.Y + 25, textWidth, 16),
                 12, Native.FW_NORMAL, PanelTheme.SecondaryText,
                 Native.DT_LEFT | Native.DT_SINGLELINE | Native.DT_END_ELLIPSIS);
@@ -431,6 +595,31 @@ internal static class Panel
             {
                 Text(dc, action.Value, action.ValueBounds, 12, Native.FW_NORMAL, PanelTheme.SecondaryText,
                     Native.DT_RIGHT | Native.DT_VCENTER | Native.DT_SINGLELINE);
+            }
+        }
+
+        if (_layout.Flyout is { } flyout)
+        {
+            var box = Scaled(flyout.Bounds);
+            Native.FillRect(dc, ref box, Brush(PanelTheme.Surface));
+            Native.FrameRect(dc, ref box, Brush(PanelTheme.Outline));
+
+            foreach (var item in flyout.Items)
+            {
+                if (_hoveredCadence == item.Cadence)
+                {
+                    var hover = Scaled(item.Bounds);
+                    Native.FillRect(dc, ref hover, Brush(PanelTheme.Hover));
+                }
+
+                // The chosen cadence is the one in full white; the others are
+                // secondary, which is the same pair the panel already proves.
+                var label = new DipRect(
+                    item.Bounds.X + 8, item.Bounds.Y, item.Bounds.Width - 16, item.Bounds.Height);
+                Text(dc, item.Label, label, 12,
+                    item.Selected ? Native.FW_SEMIBOLD : Native.FW_NORMAL,
+                    item.Selected ? PanelTheme.PrimaryText : PanelTheme.SecondaryText,
+                    Native.DT_LEFT | Native.DT_VCENTER | Native.DT_SINGLELINE);
             }
         }
     }

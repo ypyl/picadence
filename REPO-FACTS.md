@@ -19,6 +19,9 @@ Rules:
   errors, on this machine, 2026-11-20.
 - `dotnet test piclaw.sln -c Release` reported 62 passed, 0 failed, 76 ms,
   2026-11-20 (26 before the agent-status change).
+- `dotnet test piclaw.sln -c Release` reported 111 passed, 0 failed, 74 ms after
+  the scheduled-ping change, 2026-11-21. `node --test
+  extensions/piclaw.test.mjs` reported 13 passed, up from 7.
 - `dotnet format piclaw.sln --verify-no-changes` exited 0 after `.editorconfig`
   was added, 2026-11-20.
 - `dotnet run --project src/Piclaw -c Release` started the tray and the child
@@ -28,6 +31,10 @@ Rules:
   `Piclaw.exe` of 1,556,480 bytes, with no runtime dependency, 2026-11-20. It
   needs the MSVC linker; without Visual Studio Build Tools the AOT step fails.
   Reading state added `System.Text.Json`, which took the exe from 876,032 bytes.
+- The same publish after the scheduled-ping change produced 1,751,552 bytes, and
+  the published exe read 12.5 MB working set and 3.97 MB private after 8 s with
+  five live sessions on disk, 2026-11-21. The schedule and ping directories are
+  read or written on the same tick, so this is the number that includes them.
 - With the panel open on a 125% display: 16.3 MB working set and 4.6 MB private,
   2026-11-20. The panel is 320x320 DIPs at scale 1.25, so the larger surface is
   the cost, not a leak. Idle with the panel closed stays near the row below.
@@ -46,9 +53,30 @@ Rules:
   path running against real files.
 - `node --test extensions/piclaw.test.mjs` reported 7 passed, 0 failed,
   2026-11-20. `node --test extensions` does not work on Node 22.23: it treats the
-  directory as a module. Name the file.
-- `dotnet list piclaw.sln package --vulnerable --include-transitive` reported
+  directory as a module. Name the file.- `dotnet list piclaw.sln package --vulnerable --include-transitive` reported
   no vulnerable package in either project, 2026-11-20.
+
+## Tray messages
+
+- The icon callback and the panel both act on button *down*: `Native.WM_LBUTTONUP`
+  holds `0x0201`, which is `WM_LBUTTONDOWN`. Posting `0x0202` to either window
+  does nothing, and a live click works because the shell sends both. Renaming the
+  constant is not free, so it stays, and the next reader needs the fact, not a
+  surprise. Confirmed by posting both values to the panel, 2026-11-21.
+
+## Schedule lane
+
+- With a state file for a live process and a due cadence, the tray wrote
+  `pings/<session id>.json` on the next 1000 ms tick and advanced
+  `schedules/<session id>.json` to now plus the cadence, 2026-11-21. Driven by
+  hand-written files, no session involved.
+- A `WM_RBUTTONUP` on a session row, then a `WM_BUTTONUP` at the `every hour` item
+  of the list, wrote `schedules/<session id>.json` with `every` `1h` and
+  `nextAt` one hour later, 2026-11-21. That is the whole click path, exercised
+  without moving the pointer.
+- A state file whose `cwd` held single backslashes was rejected and its session
+  never appeared, which is the state reader being strict rather than a bug,
+  2026-11-21.
 
 ## Environment
 

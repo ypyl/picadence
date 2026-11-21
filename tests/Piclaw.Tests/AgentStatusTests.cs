@@ -46,11 +46,10 @@ public class AgentStatusTests
     public void No_live_session_leaves_the_indicator_quiet()
     {
         Assert.Equal(AgentState.Idle, AgentStatus.Aggregate([]));
-        Assert.Contains("no agent sessions", AgentStatus.Tooltip([]), StringComparison.Ordinal);
     }
 
-    [Fact(DisplayName = "the tooltip counts sessions by state")]
-    public void The_tooltip_counts_sessions_by_state()
+    [Fact(DisplayName = "the panel summarizes the sessions that are running")]
+    public void The_panel_summarizes_the_sessions_that_are_running()
     {
         AgentSession[] sessions =
         [
@@ -59,31 +58,10 @@ public class AgentStatusTests
             Session(3, AgentState.Blocked),
         ];
 
-        var tooltip = AgentStatus.Tooltip(sessions);
+        var summary = PanelModel.Build(sessions, Now, false).Summary;
 
-        Assert.Contains("1 waiting", tooltip, StringComparison.Ordinal);
-        Assert.Contains("2 working", tooltip, StringComparison.Ordinal);
-        Assert.DoesNotContain("failed", tooltip, StringComparison.Ordinal);
-        Assert.True(
-            tooltip.IndexOf("waiting", StringComparison.Ordinal) < tooltip.IndexOf("working", StringComparison.Ordinal),
-            "a waiting session is named before a working one");
-    }
-
-    [Fact(DisplayName = "the tooltip counts sessions by state")]
-    public void The_tooltip_lists_every_state_that_is_present()
-    {
-        AgentSession[] sessions =
-        [
-            Session(1, AgentState.Error, detail: "boom"),
-            Session(2, AgentState.Idle),
-            Session(3, AgentState.Done),
-        ];
-
-        var tooltip = AgentStatus.Tooltip(sessions);
-
-        Assert.Contains("1 failed", tooltip, StringComparison.Ordinal);
-        Assert.Contains("1 done", tooltip, StringComparison.Ordinal);
-        Assert.Contains("1 quiet", tooltip, StringComparison.Ordinal);
+        Assert.Contains("1 waiting", summary, StringComparison.Ordinal);
+        Assert.Contains("2 working", summary, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "a state change is shown within two seconds")]

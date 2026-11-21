@@ -84,3 +84,5 @@ set.
 - `openspec/specs/agent-status/spec.md`: the behavior, in the words of what you
   can observe.
 - `ARCHITECTURE.md`: the shape, in C4.
+- `DESIGN.md`: what the panel looks like and why, with the tokens and the
+  contrast floor.

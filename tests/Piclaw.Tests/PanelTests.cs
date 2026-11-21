@@ -119,6 +119,37 @@ public class PanelModelTests
     }
 
     [Fact]
+    public void A_control_keeps_its_content_inside_its_edges()
+    {
+        var layout = PanelModel.Build([Session(1, AgentState.Working)], Now, true);
+
+        Assert.All(layout.Actions, action =>
+        {
+            var labelInset = action.LabelBounds.X - action.Bounds.X;
+            var valueInset = (action.Bounds.X + action.Bounds.Width) - (action.ValueBounds.X + action.ValueBounds.Width);
+            var centreInset = action.Bounds.Y + (action.Bounds.Height / 2);
+
+            Assert.True(labelInset >= 12, $"{action.Action}: the label is {labelInset} DIPs from the edge");
+            Assert.True(valueInset >= 12, $"{action.Action}: the value is {valueInset} DIPs from the edge");
+            Assert.Equal(PanelModel.ActionHeight, action.Bounds.Height);
+            Assert.InRange(centreInset, action.Bounds.Y, action.Bounds.Y + action.Bounds.Height);
+        });
+    }
+
+    [Fact]
+    public void A_control_labels_its_value_or_leaves_it_empty()
+    {
+        var on = PanelModel.Build([], Now, true).Actions.Single(action => action.Action == PanelAction.Autostart);
+        var off = PanelModel.Build([], Now, false).Actions.Single(action => action.Action == PanelAction.Autostart);
+        var quit = PanelModel.Build([], Now, false).Actions.Single(action => action.Action == PanelAction.Quit);
+
+        Assert.Equal("on", on.Value);
+        Assert.Equal("off", off.Value);
+        Assert.Equal("Quit", quit.Label);
+        Assert.Empty(quit.Value);
+    }
+
+    [Fact]
     public void The_header_summarises_the_sessions()
     {
         var layout = PanelModel.Build(

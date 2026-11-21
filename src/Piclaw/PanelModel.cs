@@ -27,7 +27,13 @@ public enum PanelAction
     Quit,
 }
 
-public sealed record PanelActionRow(PanelAction Action, DipRect Bounds, string Label, string Value);
+public sealed record PanelActionRow(
+    PanelAction Action,
+    DipRect Bounds,
+    DipRect LabelBounds,
+    DipRect ValueBounds,
+    string Label,
+    string Value);
 
 public sealed record PanelRow(
     DipRect Bounds,
@@ -75,8 +81,18 @@ public static class PanelModel
     public const double HeaderHeight = 40;
     public const double RowHeight = 44;
     public const double RowSpacing = 8;
-    public const double ActionHeight = 28;
+    /// <summary>A control is a button: Fluent's medium height, with its content inset.</summary>
+    public const double ActionHeight = 32;
+
     public const double ActionSpacing = 2;
+
+    /// <summary>How far the hover fill sits inside the row it belongs to.</summary>
+    public const double ActionInset = 2;
+
+    /// <summary>How far the label and the value sit inside the hover fill.</summary>
+    public const double ActionPadding = 12;
+
+    public const double ActionValueWidth = 48;
     public const double RowPadding = 12;
     public const double AgeWidth = 44;
     public const int MaxRows = 8;
@@ -140,11 +156,18 @@ public static class PanelModel
         y += RowSpacing;
         var actions = new List<PanelActionRow>(2)
         {
-            new(PanelAction.Autostart, new DipRect(Padding, y, inner, ActionHeight),
-                "Start with Windows", autostartOn ? "on" : "off"),
+            Action(
+                PanelAction.Autostart,
+                new DipRect(Padding, y, inner, ActionHeight),
+                "Start with Windows",
+                autostartOn ? "on" : "off"),
         };
         y += ActionHeight + ActionSpacing;
-        actions.Add(new PanelActionRow(PanelAction.Quit, new DipRect(Padding, y, inner, ActionHeight), "Quit", string.Empty));
+        actions.Add(Action(
+            PanelAction.Quit,
+            new DipRect(Padding, y, inner, ActionHeight),
+            "Quit",
+            string.Empty));
         y += ActionHeight + Padding;
 
         var counts = sessions
@@ -166,6 +189,26 @@ public static class PanelModel
             MoreText = moreText,
             MoreBounds = moreBounds,
         };
+    }
+
+    /// <summary>
+    /// One control, laid out the way a Fluent button is: the fill sits inside the
+    /// row, and the label and value sit inside the fill so neither touches its edge.
+    /// </summary>
+    private static PanelActionRow Action(PanelAction action, DipRect bounds, string label, string value)
+    {
+        var contentLeft = bounds.X + ActionInset + ActionPadding;
+        var contentRight = bounds.X + bounds.Width - ActionInset - ActionPadding;
+        var labelWidth = Math.Max(0, contentRight - ActionValueWidth - contentLeft);
+        var valueLeft = Math.Max(contentLeft, contentRight - ActionValueWidth);
+
+        return new PanelActionRow(
+            action,
+            bounds,
+            new DipRect(contentLeft, bounds.Y, labelWidth, bounds.Height),
+            new DipRect(valueLeft, bounds.Y, Math.Max(0, contentRight - valueLeft), bounds.Height),
+            label,
+            value);
     }
 
     private static string Summary(IReadOnlyDictionary<AgentState, int> counts, int total)

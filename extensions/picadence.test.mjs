@@ -11,6 +11,8 @@ import picadence, {
   PingMaxAgeMilliseconds,
   pingDirectory,
   pollPings,
+  tabProgressSequence,
+  tabTitle,
   reduce,
   stateDirectory,
 } from "./picadence.js";
@@ -269,5 +271,88 @@ test("a session with no ping sends nothing", () => {
     assert.deepEqual(sent, []);
   } finally {
     clean();
+  }
+});
+
+test("the tab carries the state as a mark", () => {
+  assert.equal(tabTitle("working", "docs"), "● docs");
+  assert.equal(tabTitle("blocked", "docs"), "▲ docs");
+  assert.equal(tabTitle("error", "docs"), "✖ docs");
+  assert.equal(tabTitle("done", "docs"), "✓ docs");
+
+  const marks = new Set(["working", "blocked", "error", "done"].map((state) => tabTitle(state, "x")[0]));
+  assert.equal(marks.size, 4, "every state has its own mark");
+  assert.notEqual(tabTitle("blocked", "x")[0], tabTitle("error", "x")[0]);
+});
+
+test("an idle session shows no mark", () => {
+  assert.equal(tabTitle("idle", "docs"), "docs");
+  assert.equal(tabTitle("idle", "docs"), tabTitle("nonsense", "docs"));
+});
+
+test("the tab keeps the session's label", () => {
+  assert.equal(tabTitle("working", "named-session"), "● named-session");
+  assert.equal(tabTitle("working", ""), "●", "a mark with no label is still a mark");
+  assert.equal(tabTitle("idle", ""), "");
+});
+
+test("the progress sequences are the ones a terminal understands", () => {
+  assert.equal(tabProgressSequence("working"), "]9;4;3;0");
+  assert.equal(tabProgressSequence("blocked"), "]9;4;4;100");
+  assert.equal(tabProgressSequence("error"), "]9;4;2;100");
+  assert.equal(tabProgressSequence("done"), "]9;4;0;0");
+  assert.equal(tabProgressSequence("idle"), "]9;4;0;0");
+});
+
+test("a transition sets the tab title and a console run does not", async () => {
+  const localAppData = fs.mkdtempSync(path.join(os.tmpdir(), "piclaw-tab-"));
+  const previous = process.env.LOCALAPPDATA;
+  process.env.LOCALAPPDATA = localAppData;
+
+  try {
+    const handlers = new Map();
+    const titles = [];
+    const pi = {
+      on(type, handler) {
+        const list = handlers.get(type) ?? [];
+        list.push(handler);
+        handlers.set(type, list);
+      },
+    };
+    picadence(pi);
+
+    const ctx = {
+      mode: "tui",
+      model: { id: "test-model" },
+      sessionManager: { getSessionId: () => "tab-1", getSessionName: () => "named" },
+      ui: { setTitle: (value) => titles.push(value) },
+    };
+
+    for (const handler of handlers.get("session_start")) {
+      await handler({ type: "session_start" }, ctx);
+    }
+    assert.deepEqual(titles, ["named"], "an idle session carries no mark");
+
+    for (const handler of handlers.get("agent_start")) {
+      await handler({ type: "agent_start" }, ctx);
+    }
+    assert.equal(titles.at(-1), "● named");
+
+    for (const handler of handlers.get("ui_prompt_start")) {
+      await handler({ type: "ui_prompt_start", title: "Confirm?" }, ctx);
+    }
+    assert.equal(titles.at(-1), "▲ named");
+
+    for (const handler of handlers.get("agent_settled")) {
+      await handler({ type: "agent_settled" }, ctx);
+    }
+    assert.equal(titles.at(-1), "✓ named");
+  } finally {
+    if (previous === undefined) {
+      delete process.env.LOCALAPPDATA;
+    } else {
+      process.env.LOCALAPPDATA = previous;
+    }
+    fs.rmSync(localAppData, { recursive: true, force: true });
   }
 });

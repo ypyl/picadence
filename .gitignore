@@ -27,4 +27,5 @@ Thumbs.db
 **/obj/
 *.user
 .vs/
+.vscode/
 TestResults/

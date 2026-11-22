@@ -41,6 +41,9 @@ internal static class Panel
     /// <summary>The session whose cadence list is open, or null.</summary>
     private static SessionRef? _flyoutFor;
 
+    /// <summary>The first row the list is showing, so the wheel has somewhere to go.</summary>
+    private static int _scroll;
+
     /// <summary>The last sessions read, so a toggle can repaint without the store.</summary>
     private static IReadOnlyList<AgentSession> _sessions = [];
 
@@ -111,8 +114,9 @@ internal static class Panel
         _schedules = new Dictionary<SessionRef, Schedule>(schedules);
         _kept = kept;
         _now = now;
-        var next = PanelModel.Build(sessions, now, _autostartOn, _schedules, _flyoutFor, _kept);
+        var next = PanelModel.Build(sessions, now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll);
         var grew = Math.Abs(next.Height - _layout.Height) > 0.5 || Math.Abs(next.Width - _layout.Width) > 0.5;
+        _scroll = next.FirstRow;
         _layout = next;
 
         if (next.Flyout is null)
@@ -156,7 +160,8 @@ internal static class Panel
         _now = now;
         _autostartOn = Autostart.Read() is not null;
         _flyoutFor = null;
-        _layout = PanelModel.Build(sessions, now, _autostartOn, _schedules, kept: _kept);
+        _scroll = 0;
+        _layout = PanelModel.Build(sessions, now, _autostartOn, _schedules, kept: _kept, scroll: _scroll);
 
         if (_window == 0)
         {
@@ -278,6 +283,14 @@ internal static class Panel
                 return 0;
             case Native.WM_MOUSEMOVE:
                 Move((short)(lParam & 0xFFFF), (short)((lParam >> 16) & 0xFFFF));
+                return 0;
+            case Native.WM_MOUSEWHEEL when _layout.TotalRows > PanelModel.VisibleRows:
+                // One notch is three lines, and each line is a row: three rows felt
+                // like jumping, so one notch moves one row.
+                var notches = (short)((wParam >> 16) & 0xFFFF) / 120;
+                _scroll = Math.Max(0, _scroll - notches);
+                _hoveredPin = null;
+                Rebuild();
                 return 0;
             case Native.WM_MOUSELEAVE:
                 if (_hovered is not null || _hoveredItem is not null || _hoveredPin is not null)
@@ -529,7 +542,15 @@ internal static class Panel
 
     private static void Rebuild()
     {
-        _layout = PanelModel.Build(_sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept);
+        var next = PanelModel.Build(_sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll);
+        _scroll = next.FirstRow;
+        _layout = next;
+
+        if (next.Flyout is null)
+        {
+            _flyoutFor = null;
+        }
+
         Native.InvalidateRect(_window, 0, false);
     }
 
@@ -594,7 +615,7 @@ internal static class Panel
                     Autostart.Remove();
                 }
 
-                _layout = PanelModel.Build(_sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept);
+                _layout = PanelModel.Build(_sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll);
                 Native.InvalidateRect(_window, 0, false);
                 break;
         }
@@ -724,9 +745,9 @@ internal static class Panel
                 Native.DT_LEFT | Native.DT_SINGLELINE);
         }
 
-        if (_layout.MoreText is not null)
+        if (_layout.ScrollText is not null)
         {
-            Text(dc, _layout.MoreText, _layout.MoreBounds, 12, Native.FW_NORMAL,
+            Text(dc, _layout.ScrollText, _layout.ScrollBounds, 12, Native.FW_NORMAL,
                 PanelTheme.SecondaryText, Native.DT_LEFT | Native.DT_SINGLELINE);
         }
 

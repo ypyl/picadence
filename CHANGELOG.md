@@ -5,9 +5,9 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
-- A session can be kept. It stays in the panel after its tab closes, saying it is
-  not running, and one click opens a new tab that continues it, conversation
-  included.
+- A session can be kept with the pin on its row. It stays in the panel after its
+  tab closes, saying it is not running, and one click on its menu opens a new tab
+  that continues it, conversation included.
 
 
 - Each pi tab now says what its session is doing, in the tab itself: a mark and

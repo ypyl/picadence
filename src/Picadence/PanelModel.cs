@@ -16,6 +16,7 @@ public enum PanelHit
 {
     None,
     Row,
+    Pin,
     Flyout,
     Autostart,
     Quit,
@@ -46,6 +47,7 @@ public enum PanelRowKind
 public sealed record PanelRow(
     DipRect Bounds,
     DipRect AgeBounds,
+    DipRect PinBounds,
     SessionRef Reference,
     AgentState State,
     string Folder,
@@ -64,8 +66,6 @@ public sealed record KeptSession(Pin Pin, RestartPlan Plan);
 public enum PanelFlyoutAction
 {
     Cadence,
-    Keep,
-    StopKeeping,
     Restart,
 }
 
@@ -120,6 +120,14 @@ public sealed class PanelLayout
             }
         }
 
+        foreach (var row in Rows)
+        {
+            if (row.PinBounds.Contains(x, y))
+            {
+                return PanelHit.Pin;
+            }
+        }
+
         return Rows.Any(row => row.Bounds.Contains(x, y)) ? PanelHit.Row : PanelHit.None;
     }
 }
@@ -146,6 +154,18 @@ public static class PanelModel
     public const double ActionValueWidth = 48;
     public const double RowPadding = 12;
     public const double AgeWidth = 44;
+
+    /// <summary>The pin control on a row: a target a mouse can hit, beside the age.</summary>
+    public const double PinSize = 22;
+
+    /// <summary>The gap between the pin and the age it sits before.</summary>
+    public const double PinGap = 6;
+
+    /// <summary>An outline pin, for a session that is not kept. Segoe MDL2 Assets.</summary>
+    public const string KeepGlyph = "\uE840";
+
+    /// <summary>A solid pin, for a session that is kept. Segoe MDL2 Assets.</summary>
+    public const string KeptGlyph = "\uE842";
     public const int MaxRows = 8;
 
     /// <summary>The cadence list: wide enough for "every 15 minutes", six rows tall.</summary>
@@ -226,6 +246,7 @@ public static class PanelModel
                     bounds.Y + 15,
                     AgeWidth,
                     16),
+                PinOf(bounds),
                 session.Reference,
                 session.State,
                 session.Folder,
@@ -250,6 +271,7 @@ public static class PanelModel
                     bounds.Y + 15,
                     AgeWidth,
                     16),
+                PinOf(bounds),
                 new SessionRef(0, entry.Pin.SessionId),
                 AgentState.Idle,
                 entry.Pin.Folder,
@@ -346,6 +368,13 @@ public static class PanelModel
         return null;
     }
 
+    /// <summary>Where the pin sits on a row: before the age, centred vertically.</summary>
+    private static DipRect PinOf(DipRect row) => new(
+        row.X + row.Width - RowPadding - AgeWidth - PinGap - PinSize,
+        row.Y + ((RowHeight - PinSize) / 2),
+        PinSize,
+        PinSize);
+
     /// <summary>The cadence on a row, or null when that session is not armed.</summary>
     private static string? ScheduleText(
         string sessionId, IReadOnlyDictionary<string, Schedule>? schedules, DateTimeOffset now)
@@ -384,7 +413,13 @@ public static class PanelModel
         var row = rows[index];
         var cadences = row.Kind == PanelRowKind.Live ? CadenceExtensions.Offered.Length : 0;
         var restart = row.Kind == PanelRowKind.Kept && row.CanRestart ? 1 : 0;
-        var itemCount = cadences + restart + 1;
+        var itemCount = cadences + restart;
+        if (itemCount == 0)
+        {
+            // Nothing left to offer: the pin carries the only action this row has.
+            return null;
+        }
+
         var height = (2 * FlyoutPadding) + FlyoutHeaderHeight + FlyoutRule + (itemCount * FlyoutItemHeight);
         var x = Math.Clamp(
             row.Bounds.X + row.Bounds.Width - FlyoutWidth,
@@ -423,35 +458,17 @@ public static class PanelModel
                 bounds = new DipRect(x + FlyoutPadding, itemY, FlyoutWidth - (2 * FlyoutPadding), FlyoutItemHeight);
             }
 
-            items.Add(new PanelFlyoutItem(
-                row.Keeping ? PanelFlyoutAction.StopKeeping : PanelFlyoutAction.Keep,
-                Cadence.Off,
-                bounds,
-                row.Keeping ? "Stop keeping" : "Keep",
-                Selected: false));
         }
-        else
+        else if (row.CanRestart)
         {
-            // A session that is not running can only be restarted or dropped, and
-            // the restart is offered only when it would work. What is missing is
-            // said on the row, not in a greyed-out menu item nobody can press.
-            if (row.CanRestart)
-            {
-                items.Add(new PanelFlyoutItem(
-                    PanelFlyoutAction.Restart,
-                    Cadence.Off,
-                    bounds,
-                    "Restart",
-                    Selected: false));
-                itemY += FlyoutItemHeight;
-                bounds = new DipRect(x + FlyoutPadding, itemY, FlyoutWidth - (2 * FlyoutPadding), FlyoutItemHeight);
-            }
-
+            // A kept session that is not running can be restarted, and it is
+            // offered only when that would work. What is missing is said on the
+            // row, not in a greyed-out item nobody can press.
             items.Add(new PanelFlyoutItem(
-                PanelFlyoutAction.StopKeeping,
+                PanelFlyoutAction.Restart,
                 Cadence.Off,
                 bounds,
-                "Stop keeping",
+                "Restart",
                 Selected: false));
         }
 
@@ -537,7 +554,7 @@ public enum PanelPointer
 public static class PanelCursor
 {
     public static PanelPointer For(PanelHit hit) =>
-        hit is PanelHit.Quit or PanelHit.Autostart or PanelHit.Flyout
+        hit is PanelHit.Quit or PanelHit.Autostart or PanelHit.Flyout or PanelHit.Pin
             ? PanelPointer.Hand
             : PanelPointer.Arrow;
 }

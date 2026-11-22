@@ -100,8 +100,9 @@ What follows from that:
 
 ## Keep a session, and bring it back
 
-Right-click a session row and pick **Keep**. The row stays in the panel when the
-tab closes, saying `not running`, and right-clicking it offers **Restart**.
+Click the pin on a session's row, the small pin beside the age. A solid pin means
+it is kept: the row stays when the tab closes, saying `not running`, and
+right-clicking it offers **Restart**. Click the pin again to stop keeping it.
 
 Restart opens one new Windows Terminal tab in that session's folder and continues
 the same session, conversation included. Because it is the same session, the tab

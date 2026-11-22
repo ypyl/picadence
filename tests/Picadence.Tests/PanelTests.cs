@@ -353,10 +353,9 @@ public class PanelFlyoutTests
         var flyoutLayout = PanelModel.Build([session], Now, false, Cadences(schedule), flyoutFor: session.Reference);
         var flyout = Assert.IsType<PanelFlyout>(flyoutLayout.Flyout);
 
-        // Six cadences, then the one thing that is not a cadence.
-        Assert.Equal(7, flyout.Items.Count);
-        Assert.Equal("Keep", flyout.Items[^1].Label);
-        Assert.Equal(PanelFlyoutAction.Keep, flyout.Items[^1].Action);
+        // The cadences and nothing else: keeping moved onto the row's pin.
+        Assert.Equal(6, flyout.Items.Count);
+        Assert.All(flyout.Items, item => Assert.Equal(PanelFlyoutAction.Cadence, item.Action));
         var chosen = Assert.Single(flyout.Items, item => item.Selected);
         Assert.Equal(Cadence.Hourly, chosen.Cadence);
         Assert.Equal("every hour", chosen.Label);
@@ -504,9 +503,8 @@ public class PanelKeptTests
         Assert.Equal("the conversation is gone", row.Detail);
         Assert.False(row.CanRestart);
 
-        var flyout = Assert.IsType<PanelFlyout>(layout.Flyout);
-        Assert.DoesNotContain(flyout.Items, item => item.Action == PanelFlyoutAction.Restart);
-        Assert.Contains(flyout.Items, item => item.Action == PanelFlyoutAction.StopKeeping);
+        // Nothing left to offer: no menu at all, and the row says why.
+        Assert.Null(layout.Flyout);
     }
 
     [Fact(DisplayName = "a missing terminal is named")]
@@ -525,11 +523,82 @@ public class PanelKeptTests
 
         var flyout = Assert.IsType<PanelFlyout>(layout.Flyout);
         Assert.Equal("Kept session", flyout.Header);
-        Assert.Equal(["Restart", "Stop keeping"], flyout.Items.Select(item => item.Label));
+        Assert.Equal(["Restart"], flyout.Items.Select(item => item.Label));
         Assert.Equal(PanelFlyoutAction.Restart, flyout.Items[0].Action);
 
         var row = Assert.Single(layout.Rows);
         Assert.True(row.CanRestart);
         Assert.Equal(string.Empty, row.Detail);
+    }
+}
+
+public class PanelPinTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 11, 22, 20, 0, 0, TimeSpan.Zero);
+    private const string KeptId = "01a1fe3b-e1c8-71eb-afd8-f796496f0f78";
+
+    private static AgentSession Live(int pid) =>
+        new(new SessionRef(pid, $"session-{pid}"), "trayclaw", "trayclaw", null, AgentState.Done, null, Now);
+
+    private static KeptSession Kept(string sessionId = KeptId) => new(
+        new Pin(sessionId, "docs-site", @"C:\Users\me\docs-site", null, Now.AddHours(-1)),
+        new RestartPlan(
+            RestartRefusal.None,
+            new Launch("wt.exe", [], @"C:\Users\me\docs-site"),
+            string.Empty));
+
+    [Fact(DisplayName = "the pin control keeps and unkeeps a session")]
+    public void The_pin_control_keeps_and_unkeeps_a_session()
+    {
+        var layout = PanelModel.Build([Live(1)], Now, false);
+        var row = Assert.Single(layout.Rows);
+
+        Assert.False(row.Keeping);
+        Assert.Equal(
+            PanelHit.Pin,
+            layout.HitTest(
+                row.PinBounds.X + (row.PinBounds.Width / 2),
+                row.PinBounds.Y + (row.PinBounds.Height / 2)));
+
+        // Kept, and the same click again is the way back.
+        // The same session, this time kept: one row, and the pin says so.
+        var kept = PanelModel.Build([Live(1)], Now, false, kept: [Kept("session-1")]);
+        Assert.True(Assert.Single(kept.Rows).Keeping);
+        Assert.Equal(
+            PanelHit.Pin,
+            kept.HitTest(kept.Rows[0].PinBounds.X + 4, kept.Rows[0].PinBounds.Y + 4));
+    }
+
+    [Fact(DisplayName = "the pin sits inside the row and before the age")]
+    public void The_pin_sits_inside_the_row_and_before_the_age()
+    {
+        var layout = PanelModel.Build([Live(1)], Now, false);
+
+        var row = Assert.Single(layout.Rows);
+        Assert.True(row.Bounds.Contains(row.PinBounds.X, row.PinBounds.Y), "inside the row");
+        Assert.True(
+            row.Bounds.Contains(row.PinBounds.X + row.PinBounds.Width, row.PinBounds.Y),
+            "and its right edge too");
+        Assert.True(row.PinBounds.X + row.PinBounds.Width <= row.AgeBounds.X, "before the age");
+        Assert.Equal(PanelModel.PinSize, row.PinBounds.Width);
+    }
+
+    [Fact(DisplayName = "a row body is not a control")]
+    public void A_row_body_is_not_a_control()
+    {
+        var layout = PanelModel.Build([Live(1)], Now, false);
+        var row = Assert.Single(layout.Rows);
+
+        Assert.Equal(PanelHit.Row, layout.HitTest(row.Bounds.X + 40, row.Bounds.Y + 10));
+        Assert.Equal(PanelPointer.Arrow, PanelCursor.For(PanelHit.Row));
+        Assert.Equal(PanelPointer.Hand, PanelCursor.For(PanelHit.Pin));
+    }
+
+    [Fact(DisplayName = "a kept row shows the solid pin and an unkept row the outline")]
+    public void A_kept_row_shows_the_solid_pin_and_an_unkept_row_the_outline()
+    {
+        Assert.Equal("\uE840", PanelModel.KeepGlyph);
+        Assert.Equal("\uE842", PanelModel.KeptGlyph);
+        Assert.NotEqual(PanelModel.KeepGlyph, PanelModel.KeptGlyph);
     }
 }

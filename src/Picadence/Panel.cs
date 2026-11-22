@@ -19,6 +19,9 @@ internal static class Panel
     /// <summary>The scale it is painted with, derived from the size it actually got.</summary>
     private static float _scale = 1f;
     private static readonly Dictionary<int, nint> Fonts = [];
+
+    /// <summary>Glyphs come from Segoe MDL2 Assets, so they cache apart from the text.</summary>
+    private static readonly Dictionary<int, nint> Glyphs = [];
     private static readonly Dictionary<uint, nint> Brushes = [];
 
     public static bool IsOpen { get; private set; }
@@ -28,6 +31,9 @@ internal static class Panel
 
     /// <summary>The cadence under the pointer while the list is open.</summary>
     private static PanelFlyoutItem? _hoveredItem;
+
+    /// <summary>The row whose pin is under the pointer, so the control reads as one.</summary>
+    private static SessionRef? _hoveredPin;
 
     /// <summary>Whether the tray is registered to start with Windows.</summary>
     private static bool _autostartOn;
@@ -132,6 +138,7 @@ internal static class Panel
         IsOpen = false;
         _hovered = null;
         _hoveredItem = null;
+        _hoveredPin = null;
         _flyoutFor = null;
     }
 
@@ -273,10 +280,11 @@ internal static class Panel
                 Move((short)(lParam & 0xFFFF), (short)((lParam >> 16) & 0xFFFF));
                 return 0;
             case Native.WM_MOUSELEAVE:
-                if (_hovered is not null || _hoveredItem is not null)
+                if (_hovered is not null || _hoveredItem is not null || _hoveredPin is not null)
                 {
                     _hovered = null;
                     _hoveredItem = null;
+                    _hoveredPin = null;
                     Native.InvalidateRect(hwnd, 0, false);
                 }
 
@@ -310,17 +318,19 @@ internal static class Panel
         var overItem = hit == PanelHit.Flyout && _layout.Flyout is { } flyout
             ? ItemAt(flyout, pointX, pointY)
             : null;
+        var overPin = hit == PanelHit.Pin ? RowAt(pointX, pointY)?.Reference : null;
 
-        if (over == _hovered && overItem == _hoveredItem)
+        if (over == _hovered && overItem == _hoveredItem && overPin == _hoveredPin)
         {
             return;
         }
 
         _hovered = over;
         _hoveredItem = overItem;
+        _hoveredPin = overPin;
         Native.SetCursor(Cursor());
 
-        if (over is not null || overItem is not null)
+        if (over is not null || overItem is not null || overPin is not null)
         {
             var tracking = new Native.TrackMouseEventData
             {
@@ -332,6 +342,20 @@ internal static class Panel
         }
 
         Native.InvalidateRect(_window, 0, false);
+    }
+
+    /// <summary>The row under a point, whether the point landed on its body or its pin.</summary>
+    private static PanelRow? RowAt(double x, double y)
+    {
+        foreach (var row in _layout.Rows)
+        {
+            if (row.Bounds.Contains(x, y))
+            {
+                return row;
+            }
+        }
+
+        return null;
     }
 
     private static PanelFlyoutItem? ItemAt(PanelFlyout flyout, double x, double y)
@@ -391,13 +415,6 @@ internal static class Panel
             case PanelFlyoutAction.Cadence:
                 SetCadence(row, item.Cadence);
                 break;
-            case PanelFlyoutAction.Keep:
-                Keep(row);
-                break;
-            case PanelFlyoutAction.StopKeeping:
-                new PinStore(Paths.Pins).Remove(row.Reference.SessionId);
-                _kept = KeptNow();
-                break;
             case PanelFlyoutAction.Restart:
                 RestartRow(row);
                 break;
@@ -432,6 +449,24 @@ internal static class Panel
                 Missed: 0);
             store.Write(schedule);
             _schedules[row.Reference] = schedule;
+        }
+    }
+
+    /// <summary>
+    /// Keeps a session, or stops keeping it, which is what the pin on its row does.
+    /// The conversation is recorded at the moment it is kept, while the session is
+    /// still findable, because that is the only moment the search is cheap.
+    /// </summary>
+    private static void TogglePin(PanelRow row)
+    {
+        if (row.Keeping)
+        {
+            new PinStore(Paths.Pins).Remove(row.Reference.SessionId);
+            _kept = KeptNow();
+        }
+        else
+        {
+            Keep(row);
         }
     }
 
@@ -536,6 +571,11 @@ internal static class Panel
         // does not act on a session.
         switch (_layout.HitTest(pointX, pointY))
         {
+            case PanelHit.Pin when RowAt(pointX, pointY) is { } pinned:
+                TogglePin(pinned);
+                _hoveredPin = null;
+                Rebuild();
+                break;
             case PanelHit.Quit:
                 Hide();
                 Native.PostMessage(_owner, Native.WM_CLOSE, 0, 0);
@@ -627,7 +667,7 @@ internal static class Panel
             Native.SelectObject(dc, previousBrush);
 
             var textLeft = row.Bounds.X + 26;
-            var textWidth = row.AgeBounds.X - 8 - textLeft;
+            var textWidth = row.PinBounds.X - 8 - textLeft;
 
             Text(dc, row.Folder, new DipRect(textLeft, row.Bounds.Y + 5, textWidth, 20),
                 14, Native.FW_NORMAL, PanelTheme.PrimaryText,
@@ -645,6 +685,29 @@ internal static class Panel
 
             Text(dc, row.Age, row.AgeBounds, 12, Native.FW_NORMAL, PanelTheme.SecondaryText,
                 Native.DT_RIGHT | Native.DT_SINGLELINE);
+
+            // The pin says which state it is in by its shape, and the colour repeats
+            // it. A hover fill is what makes it read as a control rather than a mark.
+            if (_hoveredPin == row.Reference)
+            {
+                var hover = Scaled(row.PinBounds);
+                var pinPen = Native.SelectObject(dc, Native.GetStockObject(Native.NULL_PEN));
+                var pinBrush = Native.SelectObject(dc, Brush(PanelTheme.Hover));
+                var pinRadius = (int)Math.Round(4 * _scale);
+                Native.RoundRect(dc, hover.left, hover.top, hover.right, hover.bottom, pinRadius, pinRadius);
+                Native.SelectObject(dc, pinBrush);
+                Native.SelectObject(dc, pinPen);
+            }
+
+            Text(
+                dc,
+                row.Keeping ? PanelModel.KeptGlyph : PanelModel.KeepGlyph,
+                row.PinBounds,
+                12,
+                Native.FW_NORMAL,
+                row.Keeping ? PanelTheme.PrimaryText : PanelTheme.SecondaryText,
+                Native.DT_CENTER | Native.DT_VCENTER | Native.DT_SINGLELINE,
+                GlyphFont(12));
         }
 
         if (_layout.EmptyText is not null)
@@ -723,14 +786,36 @@ internal static class Panel
         }
     }
 
-    private static void Text(nint dc, string text, DipRect bounds, int size, int weight, Rgb colour, int flags)
+    private static void Text(
+        nint dc,
+        string text,
+        DipRect bounds,
+        int size,
+        int weight,
+        Rgb colour,
+        int flags,
+        nint? font = null)
     {
         var rect = Scaled(bounds);
-        var font = Font(size, weight);
+        font ??= Font(size, weight);
         Native.SetTextColor(dc, colour.ToColorRef());
-        var previous = Native.SelectObject(dc, font);
+        var previous = Native.SelectObject(dc, font.Value);
         Native.DrawTextW(dc, text, text.Length, ref rect, flags | Native.DT_NOPREFIX);
         Native.SelectObject(dc, previous);
+    }
+
+    /// <summary>The icon font every Windows install carries, for the one glyph the panel draws.</summary>
+    private static nint GlyphFont(int size)
+    {
+        if (Glyphs.TryGetValue(size, out var cached))
+        {
+            return cached;
+        }
+
+        var font = Native.CreateFontW(
+            -(int)Math.Round(size * _scale), 0, 0, 0, Native.FW_NORMAL, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe MDL2 Assets");
+        Glyphs[size] = font;
+        return font;
     }
 
     private static DipRect inset(DipRect bounds, double by) =>
@@ -780,5 +865,6 @@ internal static class Panel
         }
 
         Fonts.Clear();
+        Glyphs.Clear();
     }
 }

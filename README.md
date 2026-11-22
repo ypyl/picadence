@@ -144,6 +144,10 @@ need, because a session's state is parsed again only when pi rewrites it.
 - It cannot tell you which tab a session is in: Windows Terminal exposes no such
   handle. It shows the working folder and the session name instead.
 
+## License
+
+MIT. Take it, change it, ship it; the terms are in [`LICENSE`](LICENSE).
+
 ## Where to start reading
 
 - `AGENTS.md`: how work happens here. A human owns decisions; an agent writes

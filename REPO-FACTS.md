@@ -90,8 +90,8 @@ Rules:
   So this machine compiles with 10.0.404 and CI compiles with 11.0.100. The
   `Record the toolchain` step prints both versions on every run, so the day they
   disagree about formatting or an analyzer, the log says which compiler did it.
-  `shortcut: CI takes the image's default SDK while this machine is pinned to 10,
-  add global.json the first time the two disagree about a build or a format check.`
+  The upgrade trigger, that pin coming back, is a `shortcut:` comment in
+  `.github/workflows/ci.yml`, where the debt query looks.
 - Node on the image is 22.23.5, and the OpenSpec CLI the workflow installs is
   2.1.0, read from Project facts at run time. `gh run watch --exit-status` exits 0
   on a green run and non-zero on a red one.

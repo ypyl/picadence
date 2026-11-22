@@ -44,11 +44,17 @@ what its session is doing even when the tray is not running:
 The mark goes before the session's name, or its folder when the session has no
 name. It never replaces the label, so a tab is always identifiable.
 
-Windows Terminal can also show the state as a ring on the tab and on the taskbar,
-through the ConEmu progress sequence. That is **off by default**, because it means
-writing an escape sequence to the terminal while pi owns the screen, and nobody
-has watched a long session with it yet. To try it, set `PICADENCE_TAB_PROGRESS=1`
-in the environment pi starts in and restart the tab.
+Windows Terminal draws the same state as a ring on the tab and a progress bar on
+the taskbar, through the ConEmu progress sequence. That is on automatically when
+picadence recognises the terminal it runs in.
+
+- `PICADENCE_TAB_PROGRESS=0` turns it off.
+- `PICADENCE_TAB_PROGRESS=1` forces it on in a terminal picadence does not
+  recognise.
+
+Set it in the environment pi starts in, not inside pi. If you also turn on pi's
+own `terminal.showTerminalProgress`, the two write to the same channel and take
+turns; leave one of them off.
 
 Two Terminal behaviours can override the title, and neither is ours to fix: a tab
 you rename by hand stops following the title the process sets, and a shell prompt

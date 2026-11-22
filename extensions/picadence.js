@@ -136,6 +136,20 @@ export function tabTitle(state, label) {
 }
 
 /**
+ * Whether this terminal should be sent the progress sequence. The switch wins in
+ * both directions; otherwise only a terminal known to draw the ring gets it.
+ */
+export function wantsTabProgress(env = process.env) {
+  if (env.PICADENCE_TAB_PROGRESS === "0") {
+    return false;
+  }
+  if (env.PICADENCE_TAB_PROGRESS === "1") {
+    return true;
+  }
+  return Boolean(env.WT_SESSION || env.TERM_PROGRAM === "Windows_Terminal");
+}
+
+/**
  * The ConEmu "OSC 9;4" sequence a terminal uses for its tab ring and taskbar
  * progress. Windows Terminal understands it; pi has no API for it, so the caller
  * has to write it to the terminal itself. Off unless asked for, see the README.
@@ -273,9 +287,8 @@ export default function picadence(pi) {
 
   /**
    * The tab belongs to the session, so the state it shows is the state of this
-   * session and not an aggregate. The ring is opt-in: it means writing an escape
-   * sequence to the terminal while pi owns the screen, which nobody has watched
-   * long enough to call safe.
+   * session and not an aggregate. The ring is written where the terminal can draw
+   * it, which is Windows Terminal, and the switch can override that either way.
    */
   const showInTab = (ctx, facts) => {
     try {
@@ -284,7 +297,7 @@ export default function picadence(pi) {
       // A terminal that cannot take a title is not a reason to fail a session.
     }
 
-    if (process.env.PICADENCE_TAB_PROGRESS === "1") {
+    if (wantsTabProgress()) {
       try {
         process.stdout.write(tabProgressSequence(current.state));
       } catch {

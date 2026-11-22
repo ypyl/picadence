@@ -306,7 +306,7 @@ test("the progress sequences are the ones a terminal understands", () => {
 });
 
 test("a transition sets the tab title and a console run does not", async () => {
-  const localAppData = fs.mkdtempSync(path.join(os.tmpdir(), "piclaw-tab-"));
+  const localAppData = fs.mkdtempSync(path.join(os.tmpdir(), "picadence-tab-"));
   const previous = process.env.LOCALAPPDATA;
   process.env.LOCALAPPDATA = localAppData;
 
@@ -372,7 +372,7 @@ test("the switch overrides what the product detected", () => {
 });
 
 test("another terminal is written nothing", async () => {
-  const localAppData = fs.mkdtempSync(path.join(os.tmpdir(), "piclaw-notwt-"));
+  const localAppData = fs.mkdtempSync(path.join(os.tmpdir(), "picadence-notwt-"));
   const saved = {
     LOCALAPPDATA: process.env.LOCALAPPDATA,
     WT_SESSION: process.env.WT_SESSION,

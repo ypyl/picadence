@@ -104,8 +104,10 @@ What follows from that:
 ## Keep a session, and bring it back
 
 Click the pin on a session's row, the small pin beside the age. A solid pin means
-it is kept: the row stays when the tab closes, saying `not running`, and
-right-clicking it offers **Restart**. Click the pin again to stop keeping it.
+it is kept: the row stays when the tab closes, saying `not running`, and a play
+triangle appears beside the pin. Click the triangle to open the session again;
+click the pin to stop keeping it. A kept row that cannot be restarted shows no
+triangle, and the row says why.
 
 Restart opens one new Windows Terminal tab in that session's folder and continues
 the same session, conversation included. Because it is the same session, the tab

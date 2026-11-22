@@ -200,4 +200,101 @@ public class SchedulePlanTests
         Assert.Equal("new-name", written.Name);
         Assert.Single(tick.Pings);
     }
+
+    private static KeptSession Kept(
+        string sessionId,
+        RestartRefusal refusal = RestartRefusal.None,
+        string note = "") =>
+        new(
+            new Pin(
+                sessionId,
+                "news-watch",
+                @"C:\Users\me\triage",
+                @"C:\Users\me\.pi\agent\sessions\x\2026-11-21T09-00-00-000Z_" + sessionId + ".jsonl",
+                Now.AddHours(-2)),
+            new RestartPlan(
+                refusal,
+                refusal == RestartRefusal.None
+                    ? new Launch("wt.exe", "wt.exe", @"C:\Users\me\triage")
+                    : null,
+                note));
+
+    [Fact(DisplayName = "a due cadence opens a kept session's tab")]
+    public void A_due_cadence_opens_a_kept_sessions_tab()
+    {
+        // Closed for four hours, hourly: the overdue window opens the tab, and the
+        // three that passed behind it are counted.
+        var schedule = Armed("9f2c-1a", Cadence.Hourly, Now.AddHours(-4));
+
+        var tick = SchedulePlan.Plan([], [schedule], Now, [Kept("9f2c-1a")]);
+
+        var ping = Assert.Single(tick.Pings);
+        Assert.Equal(Wake.StartAndSend, ping.Wake);
+        Assert.NotNull(ping.Launch);
+        Assert.Contains("3 windows missed", ping.Text, StringComparison.Ordinal);
+        Assert.Equal(Now.AddHours(1), Assert.Single(tick.Written).NextAt);
+    }
+
+    [Fact(DisplayName = "a cadence opens nothing the user did not keep")]
+    public void A_cadence_opens_nothing_the_user_did_not_keep()
+    {
+        var schedule = Armed("9f2c-1a");
+
+        var tick = SchedulePlan.Plan([], [schedule], Now, []);
+
+        Assert.Empty(tick.Pings);
+        Assert.Empty(tick.Written);
+        Assert.Empty(tick.View);
+    }
+
+    [Fact(DisplayName = "a window opens one tab, not two")]
+    public void A_window_opens_one_tab_not_two()
+    {
+        var schedule = Armed("9f2c-1a");
+        var kept = new[] { Kept("9f2c-1a") };
+
+        var first = SchedulePlan.Plan([], [schedule], Now, kept);
+        Assert.Single(first.Pings);
+
+        // The next tick arrives before the new session has written its state. The
+        // record it wrote is overdue again? No: it was scheduled forward, so this
+        // tick is about the grace anyway, which is what a start could collide with.
+        DateTimeOffset? started = Now;
+        var second = SchedulePlan.Plan(
+            [],
+            [Armed("9f2c-1a", Cadence.Hourly, Now.AddMinutes(-1))],
+            Now.AddSeconds(2),
+            kept,
+            _ => started);
+
+        Assert.Empty(second.Pings);
+
+        // Thirty seconds later the grace is over and the clock is a clock again.
+        var third = SchedulePlan.Plan(
+            [],
+            [Armed("9f2c-1a", Cadence.Hourly, Now.AddMinutes(-1))],
+            Now.AddSeconds(31),
+            kept,
+            _ => started);
+
+        Assert.Single(third.Pings);
+    }
+
+    [Fact(DisplayName = "a missing conversation counts the window as missed")]
+    public void A_missing_conversation_counts_the_window_as_missed()
+    {
+        var schedule = Armed("9f2c-1a", Cadence.Hourly, Now.AddHours(-2));
+        var kept = new[] { Kept("9f2c-1a", RestartRefusal.NoConversation, "the conversation is gone") };
+
+        var tick = SchedulePlan.Plan([], [schedule], Now, kept);
+
+        Assert.Empty(tick.Pings);
+        var written = Assert.Single(tick.Written);
+        Assert.Equal(Now.AddHours(1), written.NextAt);
+        Assert.Equal(1, written.Missed);
+
+        // And the next window is a full cadence away, not a retry this second.
+        var later = SchedulePlan.Plan([], [written], Now.AddMinutes(5), kept);
+        Assert.Empty(later.Pings);
+    }
 }

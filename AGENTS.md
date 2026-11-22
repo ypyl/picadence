@@ -16,9 +16,10 @@ A Windows tray indicator for pi, the coding agent that runs in terminal tabs. On
 icon shows which sessions are working, which one is waiting for an answer, and
 which one failed, so nobody alt-tabs through tabs to find out. It is for one
 person on one machine and it only reports: it never sends input to pi, never stops
-one, and never reaches the network. Its one action is the one you ask for: a
-session you kept, whose tab you closed, can be restarted into its own tab. Not
-cross-platform, not a dashboard, and it cannot say which tab a session lives in.
+one, and never reaches the network. Its actions are the ones you ask for: a session
+you kept can be restarted into its own tab with a click, and a cadence you armed
+on a session you kept can open that tab when it falls due. Not cross-platform, not
+a dashboard, and it cannot say which tab a session lives in.
 
 ## Skills
 

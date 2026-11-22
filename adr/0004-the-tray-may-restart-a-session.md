@@ -1,6 +1,6 @@
 # 0004. The tray may restart a session the user kept
 
-- Status: Accepted
+- Status: Superseded by [0005](0005-a-cadence-may-start-a-kept-session.md) on the click-only constraint
 - Date: 2026-11-22
 
 ## Context

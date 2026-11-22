@@ -16,6 +16,10 @@ public class RestartTests : IDisposable
 
     private readonly string _terminal;
 
+    private readonly string _shim;
+
+    private readonly string _exe;
+
     public RestartTests()
     {
         _folder = Path.Combine(_root, "my project");
@@ -29,6 +33,13 @@ public class RestartTests : IDisposable
 
         _terminal = Path.Combine(_root, "wt.exe");
         File.WriteAllText(_terminal, string.Empty);
+
+        // Both shapes pi can be installed in: the .cmd shim it ships on Windows, and
+        // an executable a future installer might bring.
+        _shim = Path.Combine(_root, "pi.cmd");
+        _exe = Path.Combine(_root, "pi.exe");
+        File.WriteAllText(_shim, string.Empty);
+        File.WriteAllText(_exe, string.Empty);
     }
 
     public void Dispose()
@@ -46,11 +57,22 @@ public class RestartTests : IDisposable
     private Pin Pin(string? transcript, string folder) =>
         new(SessionId, "trayclaw", folder, transcript, Now);
 
-    private RestartPlan Plan(Pin pin, bool running = false, string? terminal = null) =>
+    private RestartPlan Plan(
+        Pin pin,
+        bool running = false,
+        string? terminal = null,
+        string? pi = "shim") =>
         Restart.Plan(
             pin,
             running,
             terminal ?? _terminal,
+            pi switch
+            {
+                "shim" => _shim,
+                "exe" => _exe,
+                "none" => null,
+                _ => pi,
+            },
             File.Exists,
             Directory.Exists,
             _sessions);
@@ -66,17 +88,37 @@ public class RestartTests : IDisposable
 
         Assert.Equal(_terminal, launch.File);
         Assert.Equal(_folder, launch.WorkingDirectory);
-        Assert.Equal(
-            new[]
-            {
-                "-w", "0",
-                "new-tab",
-                "--title", "trayclaw",
-                "--startingDirectory", _folder,
-                "--",
-                "pi", "--session", _transcript,
-            },
-            launch.Arguments);
+
+        // The tab: one new tab, in the session's folder, named after the session.
+        Assert.Contains($"{_terminal} -w 0 new-tab --title trayclaw", launch.CommandLine, StringComparison.Ordinal);
+        Assert.Contains($"--startingDirectory \"{_folder}\"", launch.CommandLine, StringComparison.Ordinal);
+
+        // The command: pi is a .cmd shim, so cmd.exe runs it, which is what the user's
+        // own shell does. CreateProcess cannot start a batch file itself, and cmd
+        // strips the outer quotes of a /c payload, so the payload arrives intact.
+        Assert.Contains(
+            $"-- {Restart.ComSpec()} /d /c \"{_shim} --session {Restart.Quote(_transcript)}\"",
+            launch.CommandLine,
+            StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "a real pi executable is started directly")]
+    public void A_real_pi_executable_is_started_directly()
+    {
+        var launch = Assert.IsType<Launch>(Plan(Pin(_transcript, _folder), pi: "exe").Launch);
+
+        Assert.DoesNotContain("cmd.exe", launch.CommandLine, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains($"-- {_exe} --session {_transcript}", launch.CommandLine, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "a machine without pi says so")]
+    public void A_machine_without_pi_says_so()
+    {
+        var plan = Plan(Pin(_transcript, _folder), pi: "none");
+
+        Assert.Equal(RestartRefusal.NoPi, plan.Refusal);
+        Assert.Equal("pi is not installed", plan.Note);
+        Assert.Null(plan.Launch);
     }
 
     [Fact(DisplayName = "a running session offers no restart")]
@@ -127,6 +169,7 @@ public class RestartTests : IDisposable
             Pin(_transcript, _folder),
             running: false,
             terminal: null,
+            pi: _shim,
             File.Exists,
             Directory.Exists,
             _sessions);
@@ -139,12 +182,9 @@ public class RestartTests : IDisposable
     public void A_folder_with_a_space_survives_the_command_line()
     {
         var launch = Assert.IsType<Launch>(Plan(Pin(_transcript, _folder)).Launch);
-        var line = Restart.CommandLine(launch);
 
-        Assert.Contains("-w 0 new-tab --title trayclaw", line, StringComparison.Ordinal);
-        Assert.Contains($"--startingDirectory \"{_folder}\"", line, StringComparison.Ordinal);
-        Assert.Contains($"--session {_transcript}", line, StringComparison.Ordinal);
-        Assert.Single(launch.Arguments, argument => argument == "--");
+        Assert.Contains($"\"{_folder}\"", launch.CommandLine, StringComparison.Ordinal);
+        Assert.Contains("--", launch.CommandLine, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "a path that ends in a backslash keeps its quote")]
@@ -160,7 +200,7 @@ public class RestartTests : IDisposable
     [Fact(DisplayName = "a name cannot write to the terminal through a title")]
     public void A_name_cannot_write_to_the_terminal_through_a_title()
     {
-        var pin = new Pin(SessionId, "bad\u001b]0;owned\u0007\\\"", "C:\\x", null, Now);
+        var pin = new Pin(SessionId, "bad\u001b]0;owned\u0007\"", "C:\\x", null, Now);
 
         var title = Restart.Title(pin);
 

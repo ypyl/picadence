@@ -1,6 +1,10 @@
 // The one program the tray may start. Everything is decided by a pure function so
 // each refusal is a test, and the command line is built from validated parts
 // rather than from text as given.
+//
+// pi on Windows is a .cmd shim, not an executable, and CreateProcess cannot run a
+// batch file. So the tab asks cmd.exe to run it, which is exactly what a shell
+// does when the user types `pi`. A real pi.exe is started directly when one exists.
 namespace Picadence;
 
 /// <summary>Why a restart is not offered. Each one has a sentence the row shows.</summary>
@@ -11,10 +15,11 @@ public enum RestartRefusal
     NoConversation,
     NoFolder,
     NoTerminal,
+    NoPi,
 }
 
-/// <summary>The program, its arguments, and where it runs, before quoting.</summary>
-public sealed record Launch(string File, IReadOnlyList<string> Arguments, string WorkingDirectory);
+/// <summary>The one command line the tray may run, and where it runs.</summary>
+public sealed record Launch(string File, string CommandLine, string WorkingDirectory);
 
 /// <summary>Whether a kept session can be restarted, and the words when it cannot.</summary>
 public sealed record RestartPlan(RestartRefusal Refusal, Launch? Launch, string Note)
@@ -31,6 +36,7 @@ public static class Restart
         Pin pin,
         bool running,
         string? terminal,
+        string? pi,
         Func<string, bool> fileExists,
         Func<string, bool> directoryExists,
         string sessionsRoot)
@@ -60,29 +66,76 @@ public static class Restart
             return new RestartPlan(RestartRefusal.NoTerminal, null, "windows terminal is not installed");
         }
 
+        if (pi is not { Length: > 0 } piProgram)
+        {
+            return new RestartPlan(RestartRefusal.NoPi, null, "pi is not installed");
+        }
+
         return new RestartPlan(
             RestartRefusal.None,
-            new Launch(program, Arguments(pin, transcript), pin.Folder),
+            new Launch(
+                program,
+                CommandLine(program, Title(pin), pin.Folder, piProgram, transcript),
+                pin.Folder),
             string.Empty);
     }
 
     /// <summary>The same decision with the machine answering the questions.</summary>
     public static RestartPlan View(Pin pin, bool running) =>
-        Plan(pin, running, Paths.WindowsTerminal(), File.Exists, Directory.Exists, Paths.PiSessions);
+        Plan(
+            pin,
+            running,
+            Paths.WindowsTerminal(),
+            Paths.PiLauncher(),
+            File.Exists,
+            Directory.Exists,
+            Paths.PiSessions);
 
     /// <summary>
-    /// The arguments a restart passes: one new tab in the session's folder, running
-    /// pi on the conversation the pin points at. Nothing here is a shell string.
+    /// One new tab in the session's folder, running pi on the conversation the pin
+    /// points at. A shim goes through cmd.exe, because a batch file is not a
+    /// program CreateProcess can start.
     /// </summary>
-    public static IReadOnlyList<string> Arguments(Pin pin, string transcript) =>
-    [
-        "-w", "0",
-        "new-tab",
-        "--title", Title(pin),
-        "--startingDirectory", pin.Folder,
-        "--",
-        "pi", "--session", transcript,
-    ];
+    public static string CommandLine(
+        string terminal,
+        string title,
+        string folder,
+        string pi,
+        string transcript)
+    {
+        var tab = string.Join(
+            ' ',
+            Quote(terminal),
+            "-w 0",
+            "new-tab",
+            "--title",
+            Quote(title),
+            "--startingDirectory",
+            Quote(folder),
+            "--");
+
+        if (pi.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Join(' ', tab, Quote(pi), "--session", Quote(transcript));
+        }
+
+        // cmd strips the first and last quote of a /c payload, so the payload is
+        // wrapped once more and everything inside it is quoted as it truly needs.
+        var inner = Quote(pi) + " --session " + Quote(transcript);
+        return string.Join(' ', tab, Quote(ComSpec()), "/d /c", "\"" + inner + "\"");
+    }
+
+    /// <summary>The command interpreter Windows says to use.</summary>
+    public static string ComSpec()
+    {
+        if (Environment.GetEnvironmentVariable("ComSpec") is { Length: > 0 } comspec)
+        {
+            return comspec;
+        }
+
+        var root = Environment.GetFolderPath(Environment.SpecialFolder.System);
+        return Path.Combine(root, "cmd.exe");
+    }
 
     /// <summary>
     /// The tab's title: the session's name, or the folder's last segment, with
@@ -113,20 +166,9 @@ public static class Restart
     }
 
     /// <summary>
-    /// One command line, quoted the way Windows parses it: an argument with a space
-    /// is wrapped, and the backslashes before a closing quote are doubled.
+    /// One argument, quoted the way Windows parses it: an argument with a space is
+    /// wrapped, and the backslashes before a closing quote are doubled.
     /// </summary>
-    public static string CommandLine(Launch launch)
-    {
-        var parts = new List<string>(launch.Arguments.Count + 1) { Quote(launch.File) };
-        foreach (var argument in launch.Arguments)
-        {
-            parts.Add(Quote(argument));
-        }
-
-        return string.Join(' ', parts);
-    }
-
     public static string Quote(string value)
     {
         if (value.Length == 0)

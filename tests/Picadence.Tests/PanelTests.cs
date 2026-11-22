@@ -460,7 +460,7 @@ public class PanelKeptTests
         new(sessionId, "docs-site", folder, @"C:\Users\me\.pi\agent\sessions\x\2026-11-22T09-00-00-000Z_" + sessionId + ".jsonl", Now.AddHours(-2));
 
     private static KeptSession Kept(Pin pin, RestartRefusal refusal = RestartRefusal.None, string note = "") =>
-        new(pin, new RestartPlan(refusal, refusal == RestartRefusal.None ? new Launch("wt.exe", [], pin.Folder) : null, note));
+        new(pin, new RestartPlan(refusal, refusal == RestartRefusal.None ? new Launch("wt.exe", "wt.exe", pin.Folder) : null, note));
 
     [Fact(DisplayName = "a kept session stays after it ends")]
     public void A_kept_session_stays_after_it_ends()
@@ -545,7 +545,7 @@ public class PanelPinTests
         new Pin(sessionId, "docs-site", @"C:\Users\me\docs-site", null, Now.AddHours(-1)),
         new RestartPlan(
             RestartRefusal.None,
-            new Launch("wt.exe", [], @"C:\Users\me\docs-site"),
+            new Launch("wt.exe", "wt.exe", @"C:\Users\me\docs-site"),
             string.Empty));
 
     [Fact(DisplayName = "the pin control keeps and unkeeps a session")]

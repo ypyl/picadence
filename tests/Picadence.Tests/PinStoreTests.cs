@@ -98,7 +98,7 @@ public class PinStoreTests : IDisposable
 
         Assert.Single(new PinStore(_directory).ReadAll());
 
-        var plan = Restart.Plan(pin, running: false, terminal: "wt.exe", _ => true, _ => true, _directory);
+        var plan = Restart.Plan(pin, running: false, terminal: "wt.exe", pi: "pi.cmd", _ => true, _ => true, _directory);
         Assert.Equal(RestartRefusal.NoFolder, plan.Refusal);
         Assert.Equal("the folder is gone", plan.Note);
     }

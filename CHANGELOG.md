@@ -5,6 +5,11 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- A cadence can now reach a session you kept and closed. At its due time the tray
+  opens that session's tab and the wake-up arrives in it, saying how many windows
+  passed while it was closed. A session you did not keep is still never woken.
+
+
 - A session can be kept with the pin on its row. It stays in the panel after its
   tab closes, saying it is not running, and one click on its menu opens a new tab
   that continues it, conversation included.

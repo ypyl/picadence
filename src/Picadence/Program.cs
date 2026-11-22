@@ -25,6 +25,9 @@ internal static class Program
     private static IReadOnlyList<AgentSession> _sessions = [];
     private static IReadOnlyDictionary<SessionRef, Schedule> _armed = new Dictionary<SessionRef, Schedule>();
     private static IReadOnlyList<KeptSession> _kept = [];
+
+    /// <summary>When each session was last started from the tray, so a window opens one tab.</summary>
+    private static readonly Dictionary<string, DateTimeOffset> StartedAt = new(StringComparer.Ordinal);
     private static AgentState _shownState = AgentState.Idle;
 
     [UnmanagedCallersOnly]
@@ -77,13 +80,29 @@ internal static class Program
                 .Select(pin => new KeptSession(pin, Restart.View(pin, running.Contains(pin.SessionId)))),
         ];
 
-        var tick = SchedulePlan.Plan(_sessions, Schedules.ReadAll(), now);
+        var tick = SchedulePlan.Plan(
+            _sessions,
+            Schedules.ReadAll(),
+            now,
+            _kept,
+            sessionId => StartedAt.TryGetValue(sessionId, out var started) ? started : null);
+
         HashSet<string> undelivered = new(StringComparer.Ordinal);
         foreach (var ping in tick.Pings)
         {
+            // The words go to disk before a tab is started, so the session that comes
+            // up reads them on its own first poll. A ping that could not be written is
+            // not delivered, and its window is retried rather than lost.
             if (!PingFile.Write(Paths.Pings, ping))
             {
                 undelivered.Add(ping.Schedule.SessionId);
+                continue;
+            }
+
+            if (ping is { Wake: Wake.StartAndSend, Launch: { } launch })
+            {
+                StartedAt[ping.Schedule.SessionId] = now;
+                Start(launch);
             }
         }
 

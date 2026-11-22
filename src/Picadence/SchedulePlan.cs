@@ -5,9 +5,16 @@ using System.Globalization;
 
 namespace Picadence;
 
+/// <summary>What a due window does: send the words, or start a tab and send them.</summary>
+public enum Wake
+{
+    Send,
+    StartAndSend,
+}
+
 /// <summary>A ping that is due: the record it was planned from, when it was
-/// planned, and the words.</summary>
-public sealed record Ping(Schedule Schedule, string Text, DateTimeOffset At);
+/// planned, the words, and how it is delivered.</summary>
+public sealed record Ping(Schedule Schedule, string Text, DateTimeOffset At, Wake Wake, Launch? Launch);
 
 /// <summary>What one tick decided. Program writes the pings, then the records.</summary>
 public sealed record ScheduleTick(
@@ -18,14 +25,22 @@ public sealed record ScheduleTick(
 public static class SchedulePlan
 {
     /// <summary>
-    /// Plans one tick. A cadence with no live session is left exactly as it is, so
-    /// its next time stays in the past and the window is reported as missed when
-    /// the session comes back.
+    /// How long a start is remembered, so one window cannot open two tabs while the
+    /// first is still writing its state.
+    /// </summary>
+    public static readonly TimeSpan StartGrace = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Plans one tick. A cadence with no live session waits, unless the user kept
+    /// that session: a kept session can be started, so its window is delivered by
+    /// opening one tab and letting the extension pick the ping up.
     /// </summary>
     public static ScheduleTick Plan(
         IReadOnlyList<AgentSession> sessions,
         IReadOnlyList<Schedule> schedules,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        IReadOnlyList<KeptSession>? kept = null,
+        Func<string, DateTimeOffset?>? startedAt = null)
     {
         var pings = new List<Ping>();
         var written = new Dictionary<string, Schedule>(StringComparer.Ordinal);
@@ -37,10 +52,17 @@ public static class SchedulePlan
             live.TryAdd(session.Reference.SessionId, session);
         }
 
+        var keptById = new Dictionary<string, KeptSession>(StringComparer.Ordinal);
+        foreach (var entry in kept ?? [])
+        {
+            keptById[entry.Pin.SessionId] = entry;
+        }
+
         foreach (var schedule in schedules)
         {
             if (!live.TryGetValue(schedule.SessionId, out var session))
             {
+                PlanCold(schedule, keptById, startedAt, now, pings, written);
                 continue;
             }
 
@@ -55,7 +77,7 @@ public static class SchedulePlan
             if (current.IsDue(now) && IsFree(session.State))
             {
                 var missed = current.Every.MissedBetween(current.NextAt, now);
-                pings.Add(new Ping(current, Text(current, missed, now), now));
+                pings.Add(new Ping(current, Text(current, missed, now), now, Wake.Send, null));
                 current = current.AfterFiring(now);
                 written[current.SessionId] = current;
             }
@@ -64,6 +86,47 @@ public static class SchedulePlan
         }
 
         return new ScheduleTick(pings, [.. written.Values], view);
+    }
+
+    /// <summary>
+    /// A window for a session that is not running. Nothing happens unless the user
+    /// kept it, because a pin is how they said they wanted it back. A start that
+    /// cannot work is not attempted: the window counts as missed and is scheduled
+    /// forward like any other, so a broken pin does not become a tray that tries
+    /// every second.
+    /// </summary>
+    private static void PlanCold(
+        Schedule schedule,
+        IReadOnlyDictionary<string, KeptSession> kept,
+        Func<string, DateTimeOffset?>? startedAt,
+        DateTimeOffset now,
+        List<Ping> pings,
+        Dictionary<string, Schedule> written)
+    {
+        if (!schedule.IsDue(now) || !kept.TryGetValue(schedule.SessionId, out var entry))
+        {
+            return;
+        }
+
+        // A tab that was started seconds ago has not written its state yet. Waiting
+        // is what keeps one window to one tab.
+        if (startedAt?.Invoke(schedule.SessionId) is { } started && now - started < StartGrace)
+        {
+            return;
+        }
+
+        var missed = schedule.Every.MissedBetween(schedule.NextAt, now);
+        if (entry.Plan is { CanRestart: true, Launch: { } launch })
+        {
+            pings.Add(new Ping(
+                schedule,
+                Text(schedule, missed, now),
+                now,
+                Wake.StartAndSend,
+                launch));
+        }
+
+        written[schedule.SessionId] = schedule.AfterFiring(now);
     }
 
     /// <summary>

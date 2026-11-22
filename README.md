@@ -86,8 +86,9 @@ conversation or in a file it can read, and it is that session's business.
 
 What follows from that:
 
-- Only a session running in a tab is woken. picadence starts nothing, so a closed
-  tab is never woken, and the windows it missed are counted.
+- A session that is running is woken in place. A session you kept and closed is
+  started: picadence opens its tab at the due time and the wake-up arrives there.
+  A session you never kept is not woken, and its windows are counted.
 - A session that is working, or waiting for your answer, is skipped rather than
   queued behind the run you started.
 - A gap produces one wake-up, and the message says how many windows it missed.
@@ -95,6 +96,8 @@ What follows from that:
   of picadence, a reboot, and a session you resume. Resume with `pi -c`, `pi
   --resume`, or `pi --session-id <id>`: a brand new session is a different
   session, so it is never woken.
+- Starting a session costs tokens while you are not looking. That is what a
+  cadence is for, and it is why a start needs both a cadence and a pin.
 - Turning a cadence off deletes it, and nothing else ever does. A cadence that
   fires once a year looks abandoned for the rest of it, and that is fine.
 

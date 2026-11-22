@@ -7,7 +7,8 @@ You run pi in a few tabs. When one finishes, or stops to ask you something, you
 find out when you alt-tab back to it. picadence puts that on the edge of the
 screen, so the answer is one glance away.
 
-It can also wake a session for you, on a cadence you pick.
+It can also wake a session for you on a cadence you pick, and bring a session
+back into its own tab after you closed it.
 
 ![The picadence panel: three sessions, one working, one waiting for an answer, one
 failed, with the age of each change and the two controls](docs/panel.png)
@@ -97,6 +98,23 @@ What follows from that:
 - Turning a cadence off deletes it, and nothing else ever does. A cadence that
   fires once a year looks abandoned for the rest of it, and that is fine.
 
+## Keep a session, and bring it back
+
+Right-click a session row and pick **Keep**. The row stays in the panel when the
+tab closes, saying `not running`, and right-clicking it offers **Restart**.
+
+Restart opens one new Windows Terminal tab in that session's folder and continues
+the same session, conversation included. Because it is the same session, the tab
+mark, the row and any cadence you armed all come back with it.
+
+The restart is offered only when it would work. The row says what is missing
+instead: the conversation is gone, the folder is gone, or Windows Terminal is not
+installed. A session that is running offers no restart, because two processes
+writing one conversation is not something to leave to a misclick.
+
+This is the one thing picadence starts. It runs `wt.exe` with `pi --session` for a
+row you kept, and nothing else, ever.
+
 ## Install the pi side
 
 The tray is half the product. The other half runs inside pi and reports state.
@@ -136,9 +154,10 @@ need, because a session's state is parsed again only when pi rewrites it.
 
 ## What it is not
 
-- Not an orchestrator. It cannot type into a session, press a key in one, or
-  start or stop one. The only thing it may send is a scheduled wake-up to a
-  session you armed by hand, and only while that session is running.
+- Not an orchestrator. It cannot type into a session, press a key in one, or stop
+  one. The only things it may start are a scheduled wake-up you armed, and one tab
+  that resumes a session you kept, both while you watch and neither without you
+  asking.
 - Not cross-platform, and not a web app.
 - No history, no analytics, no cloud, no account, no network call at all.
 - It cannot tell you which tab a session is in: Windows Terminal exposes no such

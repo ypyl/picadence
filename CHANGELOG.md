@@ -5,6 +5,11 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- A session can be kept. It stays in the panel after its tab closes, saying it is
+  not running, and one click opens a new tab that continues it, conversation
+  included.
+
+
 - Each pi tab now says what its session is doing, in the tab itself: a mark and
   the session's name, so a tab that needs you looks different from one that is
   working, even with picadence not running.

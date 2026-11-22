@@ -1,0 +1,82 @@
+namespace Picadence.Tests;
+
+public class PinStoreTests : IDisposable
+{
+    private static readonly DateTimeOffset Kept = new(2026, 11, 22, 19, 31, 4, TimeSpan.Zero);
+
+    private readonly string _directory = Path.Combine(
+        Path.GetTempPath(), "picadence-pins-" + Guid.NewGuid().ToString("N"));
+
+    public void Dispose()
+    {
+        try
+        {
+            Directory.Delete(_directory, recursive: true);
+        }
+        catch (IOException)
+        {
+            // The assertions already ran; a leaked temp folder is not a failure.
+        }
+    }
+
+    private Pin Sample(string sessionId = "01a1fe3b-e1c8-71eb-afd8-f796496f0f78", string? transcript = null) =>
+        new(
+            sessionId,
+            "trayclaw",
+            Path.Combine(Path.GetTempPath(), "trayclaw"),
+            transcript ?? Path.Combine(Path.GetTempPath(), "sessions", $"2026-11-22T09-14-02-118Z_{sessionId}.jsonl"),
+            Kept);
+
+    [Fact(DisplayName = "a kept session outlives the tray")]
+    public void A_kept_session_outlives_the_tray()
+    {
+        var pin = Sample();
+        new PinStore(_directory).Write(pin);
+
+        // A second store stands in for the tray after a restart: nothing is held in
+        // memory between the two, so what comes back came off the disk.
+        var reread = Assert.Single(new PinStore(_directory).ReadAll());
+
+        Assert.Equal(pin.SessionId, reread.SessionId);
+        Assert.Equal(pin.Folder, reread.Folder);
+        Assert.Equal(pin.Transcript, reread.Transcript);
+        Assert.Equal(pin.Name, reread.Name);
+        Assert.Equal(pin.KeptAt.ToUniversalTime(), reread.KeptAt.ToUniversalTime());
+    }
+
+    [Fact(DisplayName = "stopping the keeping removes the row")]
+    public void Stopping_the_keeping_removes_the_row()
+    {
+        var store = new PinStore(_directory);
+        store.Write(Sample());
+        Assert.Single(store.ReadAll());
+
+        store.Remove(Sample().SessionId);
+
+        Assert.Empty(new PinStore(_directory).ReadAll());
+    }
+
+    [Theory(DisplayName = "a pin that cannot be read exactly is not used")]
+    [InlineData("not json")]
+    [InlineData("{\"sessionId\":\"someone-else\",\"folder\":\"C:\\\\x\",\"keptAt\":\"2026-11-22T19:31:04Z\"}")]
+    [InlineData("{\"sessionId\":\"pinned\",\"folder\":\"relative\",\"keptAt\":\"2026-11-22T19:31:04Z\"}")]
+    [InlineData("{\"sessionId\":\"pinned\",\"folder\":\"C:\\\\x\",\"transcript\":\"C:\\\\x\\\\a.txt\",\"keptAt\":\"2026-11-22T19:31:04Z\"}")]
+    [InlineData("{\"sessionId\":\"pinned\",\"folder\":\"C:\\\\x\"}")]
+    public void A_pin_that_cannot_be_read_exactly_is_not_used(string json)
+    {
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(Path.Combine(_directory, "pinned.json"), json);
+
+        Assert.Empty(new PinStore(_directory).ReadAll());
+    }
+
+    [Fact(DisplayName = "a pin whose file name is not a session id is skipped")]
+    public void A_pin_whose_file_name_is_not_a_session_id_is_skipped()
+    {
+        Directory.CreateDirectory(_directory);
+        var pin = Sample("pinned");
+        File.WriteAllText(Path.Combine(_directory, "..-pinned.json"), PinFile.ToJson(pin));
+
+        Assert.Empty(new PinStore(_directory).ReadAll());
+    }
+}

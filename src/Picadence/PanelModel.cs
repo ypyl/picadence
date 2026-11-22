@@ -36,6 +36,13 @@ public sealed record PanelActionRow(
     string Label,
     string Value);
 
+/// <summary>A row is either a session that is running or one the user kept.</summary>
+public enum PanelRowKind
+{
+    Live,
+    Kept,
+}
+
 public sealed record PanelRow(
     DipRect Bounds,
     DipRect AgeBounds,
@@ -45,10 +52,30 @@ public sealed record PanelRow(
     string StateWord,
     string Detail,
     string Age,
-    string? Schedule);
+    string? Schedule,
+    PanelRowKind Kind,
+    bool Keeping,
+    bool CanRestart);
 
-/// <summary>One cadence in the flyout a right click opens on a row.</summary>
-public sealed record PanelFlyoutItem(Cadence Cadence, DipRect Bounds, string Label, bool Selected);
+/// <summary>A kept session, with the answer to whether it can be restarted.</summary>
+public sealed record KeptSession(Pin Pin, RestartPlan Plan);
+
+/// <summary>What a flyout item does: set a cadence, keep, stop keeping, restart.</summary>
+public enum PanelFlyoutAction
+{
+    Cadence,
+    Keep,
+    StopKeeping,
+    Restart,
+}
+
+/// <summary>One item in the list a right click opens on a row.</summary>
+public sealed record PanelFlyoutItem(
+    PanelFlyoutAction Action,
+    Cadence Cadence,
+    DipRect Bounds,
+    string Label,
+    bool Selected);
 
 /// <summary>The list a right click opens, painted inside the panel's own window.</summary>
 public sealed record PanelFlyout(
@@ -135,6 +162,9 @@ public static class PanelModel
 
     public const string FlyoutHeader = "Repeat ping";
 
+    /// <summary>The heading for a session that is kept and not running.</summary>
+    public const string KeptFlyoutHeader = "Kept session";
+
     /// <summary>
     /// The panel for these sessions. Rows are newest first, capped, and the last
     /// row says how many are not shown rather than growing the panel past the
@@ -146,15 +176,40 @@ public static class PanelModel
         DateTimeOffset now,
         bool autostartOn,
         IReadOnlyDictionary<SessionRef, Schedule>? schedules = null,
-        SessionRef? flyoutFor = null)
+        SessionRef? flyoutFor = null,
+        IReadOnlyList<KeptSession>? kept = null)
     {
+        var keptById = new Dictionary<string, KeptSession>(StringComparer.Ordinal);
+        foreach (var entry in kept ?? [])
+        {
+            keptById[entry.Pin.SessionId] = entry;
+        }
+
+        var armedById = new Dictionary<string, Schedule>(StringComparer.Ordinal);
+        foreach (var schedule in schedules?.Values ?? [])
+        {
+            armedById[schedule.SessionId] = schedule;
+        }
+
         var ordered = sessions
             .OrderByDescending(session => session.UpdatedAt)
             .ThenBy(session => session.Folder, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var shown = ordered.Take(MaxRows).ToList();
-        var hidden = ordered.Count - shown.Count;
+
+        // Kept sessions that are not running come after the live ones, oldest
+        // first, and share the same row budget so the panel stays one screen.
+        var liveIds = new HashSet<string>(
+            ordered.Select(session => session.Reference.SessionId), StringComparer.Ordinal);
+        var keptRows = keptById.Values
+            .Where(entry => !liveIds.Contains(entry.Pin.SessionId))
+            .OrderBy(entry => entry.Pin.KeptAt)
+            .ThenBy(entry => entry.Pin.SessionId, StringComparer.Ordinal)
+            .ToList();
+        var keptRoom = Math.Max(0, MaxRows - shown.Count);
+        var shownKept = keptRows.Take(keptRoom).ToList();
+        var hidden = (ordered.Count - shown.Count) + (keptRows.Count - shownKept.Count);
         var inner = Width - (2 * Padding);
         var header = new DipRect(Padding, Padding, inner, HeaderHeight);
         var y = Padding + HeaderHeight;
@@ -177,7 +232,34 @@ public static class PanelModel
                 session.State.Describe(),
                 session.Detail ?? string.Empty,
                 Age.Format(now - session.UpdatedAt),
-                ScheduleText(session.Reference, schedules, now)));
+                ScheduleText(session.Reference.SessionId, armedById, now),
+                PanelRowKind.Live,
+                Keeping: keptById.ContainsKey(session.Reference.SessionId),
+                CanRestart: false));
+            y += RowHeight;
+        }
+
+        foreach (var entry in shownKept)
+        {
+            y += RowSpacing;
+            var bounds = new DipRect(Padding, y, inner, RowHeight);
+            rows.Add(new PanelRow(
+                bounds,
+                new DipRect(
+                    bounds.X + bounds.Width - RowPadding - AgeWidth,
+                    bounds.Y + 15,
+                    AgeWidth,
+                    16),
+                new SessionRef(0, entry.Pin.SessionId),
+                AgentState.Idle,
+                entry.Pin.Folder,
+                "not running",
+                entry.Plan.Note,
+                "kept " + Age.Format(now - entry.Pin.KeptAt),
+                ScheduleText(entry.Pin.SessionId, armedById, now),
+                PanelRowKind.Kept,
+                Keeping: true,
+                entry.Plan.CanRestart));
             y += RowHeight;
         }
 
@@ -221,7 +303,7 @@ public static class PanelModel
             .ToDictionary(group => group.Key, group => group.Count());
 
         var flyoutRow = flyoutFor is { } openSession ? RowOf(rows, openSession) : null;
-        var flyout = Flyout(rows, schedules, flyoutRow, y);
+        var flyout = Flyout(rows, armedById, flyoutRow, y);
 
         // A list that is taller than the rows it covers grows the panel, because a
         // window cannot paint outside itself. With one session that is the normal
@@ -266,9 +348,9 @@ public static class PanelModel
 
     /// <summary>The cadence on a row, or null when that session is not armed.</summary>
     private static string? ScheduleText(
-        SessionRef reference, IReadOnlyDictionary<SessionRef, Schedule>? schedules, DateTimeOffset now)
+        string sessionId, IReadOnlyDictionary<string, Schedule>? schedules, DateTimeOffset now)
     {
-        if (schedules is null || !schedules.TryGetValue(reference, out var schedule))
+        if (schedules is null || !schedules.TryGetValue(sessionId, out var schedule))
         {
             return null;
         }
@@ -290,7 +372,7 @@ public static class PanelModel
     /// </summary>
     private static PanelFlyout? Flyout(
         IReadOnlyList<PanelRow> rows,
-        IReadOnlyDictionary<SessionRef, Schedule>? schedules,
+        IReadOnlyDictionary<string, Schedule>? schedules,
         int? rowIndex,
         double panelHeight)
     {
@@ -299,20 +381,19 @@ public static class PanelModel
             return null;
         }
 
-        var height = (2 * FlyoutPadding) + FlyoutHeaderHeight + FlyoutRule
-            + (CadenceExtensions.Offered.Length * FlyoutItemHeight);
+        var row = rows[index];
+        var cadences = row.Kind == PanelRowKind.Live ? CadenceExtensions.Offered.Length : 0;
+        var restart = row.Kind == PanelRowKind.Kept && row.CanRestart ? 1 : 0;
+        var itemCount = cadences + restart + 1;
+        var height = (2 * FlyoutPadding) + FlyoutHeaderHeight + FlyoutRule + (itemCount * FlyoutItemHeight);
         var x = Math.Clamp(
-            rows[index].Bounds.X + rows[index].Bounds.Width - FlyoutWidth,
+            row.Bounds.X + row.Bounds.Width - FlyoutWidth,
             Padding,
             Math.Max(Padding, Width - Padding - FlyoutWidth));
         var y = Math.Clamp(
-            rows[index].Bounds.Y,
+            row.Bounds.Y,
             Padding,
             Math.Max(Padding, panelHeight - height - Padding));
-
-        var current = schedules is not null && schedules.TryGetValue(rows[index].Reference, out var armed)
-            ? armed.Every
-            : Cadence.Off;
 
         var header = new DipRect(
             x + FlyoutPadding,
@@ -320,19 +401,62 @@ public static class PanelModel
             FlyoutWidth - (2 * FlyoutPadding),
             FlyoutHeaderHeight);
 
-        var items = new List<PanelFlyoutItem>(CadenceExtensions.Offered.Length);
+        var items = new List<PanelFlyoutItem>(itemCount);
         var itemY = y + FlyoutPadding + FlyoutHeaderHeight + FlyoutRule;
-        foreach (var cadence in CadenceExtensions.Offered)
+        var bounds = new DipRect(x + FlyoutPadding, itemY, FlyoutWidth - (2 * FlyoutPadding), FlyoutItemHeight);
+
+        if (row.Kind == PanelRowKind.Live)
         {
+            var current = schedules is not null && schedules.TryGetValue(row.Reference.SessionId, out var armed)
+                ? armed.Every
+                : Cadence.Off;
+
+            foreach (var cadence in CadenceExtensions.Offered)
+            {
+                items.Add(new PanelFlyoutItem(
+                    PanelFlyoutAction.Cadence,
+                    cadence,
+                    bounds,
+                    cadence.Label(),
+                    cadence == current));
+                itemY += FlyoutItemHeight;
+                bounds = new DipRect(x + FlyoutPadding, itemY, FlyoutWidth - (2 * FlyoutPadding), FlyoutItemHeight);
+            }
+
             items.Add(new PanelFlyoutItem(
-                cadence,
-                new DipRect(x + FlyoutPadding, itemY, FlyoutWidth - (2 * FlyoutPadding), FlyoutItemHeight),
-                cadence.Label(),
-                cadence == current));
-            itemY += FlyoutItemHeight;
+                row.Keeping ? PanelFlyoutAction.StopKeeping : PanelFlyoutAction.Keep,
+                Cadence.Off,
+                bounds,
+                row.Keeping ? "Stop keeping" : "Keep",
+                Selected: false));
+        }
+        else
+        {
+            // A session that is not running can only be restarted or dropped, and
+            // the restart is offered only when it would work. What is missing is
+            // said on the row, not in a greyed-out menu item nobody can press.
+            if (row.CanRestart)
+            {
+                items.Add(new PanelFlyoutItem(
+                    PanelFlyoutAction.Restart,
+                    Cadence.Off,
+                    bounds,
+                    "Restart",
+                    Selected: false));
+                itemY += FlyoutItemHeight;
+                bounds = new DipRect(x + FlyoutPadding, itemY, FlyoutWidth - (2 * FlyoutPadding), FlyoutItemHeight);
+            }
+
+            items.Add(new PanelFlyoutItem(
+                PanelFlyoutAction.StopKeeping,
+                Cadence.Off,
+                bounds,
+                "Stop keeping",
+                Selected: false));
         }
 
-        return new PanelFlyout(index, new DipRect(x, y, FlyoutWidth, height), FlyoutHeader, header, items);
+        var headerText = row.Kind == PanelRowKind.Live ? FlyoutHeader : KeptFlyoutHeader;
+        return new PanelFlyout(index, new DipRect(x, y, FlyoutWidth, height), headerText, header, items);
     }
 
     /// <summary>

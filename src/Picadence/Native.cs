@@ -346,4 +346,57 @@ internal static class Native
 
     [DllImport("shell32.dll")]
     internal static extern int Shell_NotifyIconGetRect(ref NotifyIconIdentifier identifier, out Rect icon);
+
+    /// <summary>Starts a process without a window of its own and without a console.</summary>
+    internal const uint CREATE_NO_WINDOW = 0x08000000;
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct StartupInfo
+    {
+        public int cb;
+        public nint lpReserved;
+        public nint lpDesktop;
+        public nint lpTitle;
+        public int dwX;
+        public int dwY;
+        public int dwXSize;
+        public int dwYSize;
+        public int dwXCountChars;
+        public int dwYCountChars;
+        public int dwFillAttribute;
+        public int dwFlags;
+        public short wShowWindow;
+        public short cbReserved2;
+        public nint lpReserved2;
+        public nint hStdInput;
+        public nint hStdOutput;
+        public nint hStdError;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct ProcessInformation
+    {
+        public nint hProcess;
+        public nint hThread;
+        public int dwProcessId;
+        public int dwThreadId;
+    }
+
+    /// <summary>
+    /// CreateProcess takes one command line and is allowed to write to it, so the
+    /// buffer belongs to the caller. Passing a managed string here would hand over
+    /// memory the runtime also believes it owns.
+    /// </summary>
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    internal static extern unsafe bool CreateProcessW(
+        nint applicationName,
+        char* commandLine,
+        nint processAttributes,
+        nint threadAttributes,
+        bool inheritHandles,
+        uint creationFlags,
+        nint environment,
+        string? currentDirectory,
+        ref StartupInfo startupInfo,
+        out ProcessInformation processInformation);
 }

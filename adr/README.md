@@ -16,6 +16,7 @@ say the names of their day; the changelog carries the rename.
 | [0001](0001-native-tray-fed-by-pi-extension.md) | A native tray app fed by a pi extension | Accepted |
 | [0002](0002-the-tray-may-wake-a-session.md) | The tray may wake a session on a cadence | Accepted |
 | [0003](0003-a-runner-builds-every-push.md) | A GitHub runner builds and checks every push | Accepted |
+| [0004](0004-the-tray-may-restart-a-session.md) | The tray may restart a session the user kept | Accepted |
 
 ## Adding a decision
 

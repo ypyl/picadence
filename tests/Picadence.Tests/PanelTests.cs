@@ -353,7 +353,10 @@ public class PanelFlyoutTests
         var flyoutLayout = PanelModel.Build([session], Now, false, Cadences(schedule), flyoutFor: session.Reference);
         var flyout = Assert.IsType<PanelFlyout>(flyoutLayout.Flyout);
 
-        Assert.Equal(6, flyout.Items.Count);
+        // Six cadences, then the one thing that is not a cadence.
+        Assert.Equal(7, flyout.Items.Count);
+        Assert.Equal("Keep", flyout.Items[^1].Label);
+        Assert.Equal(PanelFlyoutAction.Keep, flyout.Items[^1].Action);
         var chosen = Assert.Single(flyout.Items, item => item.Selected);
         Assert.Equal(Cadence.Hourly, chosen.Cadence);
         Assert.Equal("every hour", chosen.Label);
@@ -443,5 +446,90 @@ public class PanelFlyoutTests
         Assert.Equal(
             PanelHit.Row,
             layout.HitTest(uncoveredRow.Bounds.X + 2, uncoveredRow.Bounds.Y + uncoveredRow.Bounds.Height - 2));
+    }
+}
+
+public class PanelKeptTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 11, 22, 20, 0, 0, TimeSpan.Zero);
+    private const string KeptId = "01a1fe3b-e1c8-71eb-afd8-f796496f0f78";
+
+    private static AgentSession Live(int pid, string sessionId = "live-1") =>
+        new(new SessionRef(pid, sessionId), "trayclaw", "trayclaw", null, AgentState.Working, null, Now.AddSeconds(-30));
+
+    private static Pin Pin(string sessionId = KeptId, string folder = @"C:\Users\me\docs-site") =>
+        new(sessionId, "docs-site", folder, @"C:\Users\me\.pi\agent\sessions\x\2026-11-22T09-00-00-000Z_" + sessionId + ".jsonl", Now.AddHours(-2));
+
+    private static KeptSession Kept(Pin pin, RestartRefusal refusal = RestartRefusal.None, string note = "") =>
+        new(pin, new RestartPlan(refusal, refusal == RestartRefusal.None ? new Launch("wt.exe", [], pin.Folder) : null, note));
+
+    [Fact(DisplayName = "a kept session stays after it ends")]
+    public void A_kept_session_stays_after_it_ends()
+    {
+        var layout = PanelModel.Build([], Now, false, kept: [Kept(Pin())]);
+
+        var row = Assert.Single(layout.Rows);
+        Assert.Equal(PanelRowKind.Kept, row.Kind);
+        Assert.Equal("not running", row.StateWord);
+        Assert.Equal(@"C:\Users\me\docs-site", row.Folder);
+        Assert.Equal("kept 2h", row.Age);
+        Assert.Equal("nothing running", layout.Summary);
+
+        // Kept rows come after the ones that are running.
+        var withLive = PanelModel.Build([Live(9)], Now, false, kept: [Kept(Pin())]);
+        Assert.Equal(PanelRowKind.Live, withLive.Rows[0].Kind);
+        Assert.Equal(PanelRowKind.Kept, withLive.Rows[1].Kind);
+    }
+
+    [Fact(DisplayName = "a kept session that is running is one row, not two")]
+    public void A_kept_session_that_is_running_is_one_row_not_two()
+    {
+        var pin = Pin("live-1");
+        var layout = PanelModel.Build([Live(9)], Now, false, kept: [Kept(pin)]);
+
+        var row = Assert.Single(layout.Rows);
+        Assert.Equal(PanelRowKind.Live, row.Kind);
+        Assert.True(row.Keeping);
+    }
+
+    [Fact(DisplayName = "a missing conversation is named")]
+    public void A_missing_conversation_is_named()
+    {
+        var pin = Pin();
+        var layout = PanelModel.Build(
+            [], Now, false, flyoutFor: new SessionRef(0, KeptId),
+            kept: [Kept(pin, RestartRefusal.NoConversation, "the conversation is gone")]);
+
+        var row = Assert.Single(layout.Rows);
+        Assert.Equal("the conversation is gone", row.Detail);
+        Assert.False(row.CanRestart);
+
+        var flyout = Assert.IsType<PanelFlyout>(layout.Flyout);
+        Assert.DoesNotContain(flyout.Items, item => item.Action == PanelFlyoutAction.Restart);
+        Assert.Contains(flyout.Items, item => item.Action == PanelFlyoutAction.StopKeeping);
+    }
+
+    [Fact(DisplayName = "a missing terminal is named")]
+    public void A_missing_terminal_is_named()
+    {
+        var layout = PanelModel.Build(
+            [], Now, false, kept: [Kept(Pin(), RestartRefusal.NoTerminal, "windows terminal is not installed")]);
+
+        Assert.Equal("windows terminal is not installed", Assert.Single(layout.Rows).Detail);
+    }
+
+    [Fact(DisplayName = "a kept row that can restart offers it")]
+    public void A_kept_row_that_can_restart_offers_it()
+    {
+        var layout = PanelModel.Build([], Now, false, flyoutFor: new SessionRef(0, KeptId), kept: [Kept(Pin())]);
+
+        var flyout = Assert.IsType<PanelFlyout>(layout.Flyout);
+        Assert.Equal("Kept session", flyout.Header);
+        Assert.Equal(["Restart", "Stop keeping"], flyout.Items.Select(item => item.Label));
+        Assert.Equal(PanelFlyoutAction.Restart, flyout.Items[0].Action);
+
+        var row = Assert.Single(layout.Rows);
+        Assert.True(row.CanRestart);
+        Assert.Equal(string.Empty, row.Detail);
     }
 }

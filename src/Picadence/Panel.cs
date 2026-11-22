@@ -27,7 +27,7 @@ internal static class Panel
     private static PanelAction? _hovered;
 
     /// <summary>The cadence under the pointer while the list is open.</summary>
-    private static Cadence? _hoveredCadence;
+    private static PanelFlyoutItem? _hoveredItem;
 
     /// <summary>Whether the tray is registered to start with Windows.</summary>
     private static bool _autostartOn;
@@ -40,6 +40,11 @@ internal static class Panel
 
     /// <summary>The cadences of those sessions, by session.</summary>
     private static Dictionary<SessionRef, Schedule> _schedules = [];
+
+    private static IReadOnlyList<KeptSession> _kept = [];
+
+    /// <summary>What starts a restart. The tray sets this; a test records it.</summary>
+    internal static Func<Launch, bool> Launcher = _ => false;
 
     /// <summary>The moment the layout was built for, so a choice can time its first ping.</summary>
     private static DateTimeOffset _now = DateTimeOffset.Now;
@@ -71,11 +76,12 @@ internal static class Panel
         IReadOnlyList<AgentSession> sessions,
         IReadOnlyDictionary<SessionRef, Schedule> schedules,
         DateTimeOffset now,
-        nint owner)
+        nint owner,
+        IReadOnlyList<KeptSession> kept)
     {
         if (PanelController.After(IsOpen, PanelInput.IconClicked))
         {
-            Show(sessions, schedules, now, owner);
+            Show(sessions, schedules, now, owner, kept);
         }
         else
         {
@@ -87,7 +93,8 @@ internal static class Panel
     public static void Update(
         IReadOnlyList<AgentSession> sessions,
         IReadOnlyDictionary<SessionRef, Schedule> schedules,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        IReadOnlyList<KeptSession> kept)
     {
         if (!IsOpen)
         {
@@ -96,8 +103,9 @@ internal static class Panel
 
         _sessions = sessions;
         _schedules = new Dictionary<SessionRef, Schedule>(schedules);
+        _kept = kept;
         _now = now;
-        var next = PanelModel.Build(sessions, now, _autostartOn, _schedules, _flyoutFor);
+        var next = PanelModel.Build(sessions, now, _autostartOn, _schedules, _flyoutFor, _kept);
         var grew = Math.Abs(next.Height - _layout.Height) > 0.5 || Math.Abs(next.Width - _layout.Width) > 0.5;
         _layout = next;
 
@@ -123,7 +131,7 @@ internal static class Panel
 
         IsOpen = false;
         _hovered = null;
-        _hoveredCadence = null;
+        _hoveredItem = null;
         _flyoutFor = null;
     }
 
@@ -131,15 +139,17 @@ internal static class Panel
         IReadOnlyList<AgentSession> sessions,
         IReadOnlyDictionary<SessionRef, Schedule> schedules,
         DateTimeOffset now,
-        nint owner)
+        nint owner,
+        IReadOnlyList<KeptSession> kept)
     {
         _owner = owner;
         _sessions = sessions;
         _schedules = new Dictionary<SessionRef, Schedule>(schedules);
+        _kept = kept;
         _now = now;
         _autostartOn = Autostart.Read() is not null;
         _flyoutFor = null;
-        _layout = PanelModel.Build(sessions, now, _autostartOn, _schedules);
+        _layout = PanelModel.Build(sessions, now, _autostartOn, _schedules, kept: _kept);
 
         if (_window == 0)
         {
@@ -263,10 +273,10 @@ internal static class Panel
                 Move((short)(lParam & 0xFFFF), (short)((lParam >> 16) & 0xFFFF));
                 return 0;
             case Native.WM_MOUSELEAVE:
-                if (_hovered is not null || _hoveredCadence is not null)
+                if (_hovered is not null || _hoveredItem is not null)
                 {
                     _hovered = null;
-                    _hoveredCadence = null;
+                    _hoveredItem = null;
                     Native.InvalidateRect(hwnd, 0, false);
                 }
 
@@ -297,20 +307,20 @@ internal static class Panel
             PanelHit.Quit => PanelAction.Quit,
             _ => null,
         };
-        var overCadence = hit == PanelHit.Flyout && _layout.Flyout is { } flyout
-            ? ItemAt(flyout, pointX, pointY)?.Cadence
+        var overItem = hit == PanelHit.Flyout && _layout.Flyout is { } flyout
+            ? ItemAt(flyout, pointX, pointY)
             : null;
 
-        if (over == _hovered && overCadence == _hoveredCadence)
+        if (over == _hovered && overItem == _hoveredItem)
         {
             return;
         }
 
         _hovered = over;
-        _hoveredCadence = overCadence;
+        _hoveredItem = overItem;
         Native.SetCursor(Cursor());
 
-        if (over is not null || overCadence is not null)
+        if (over is not null || overItem is not null)
         {
             var tracking = new Native.TrackMouseEventData
             {
@@ -350,7 +360,7 @@ internal static class Panel
             if (_layout.Rows[index].Bounds.Contains(pointX, pointY))
             {
                 _flyoutFor = _layout.Rows[index].Reference;
-                _hoveredCadence = null;
+                _hoveredItem = null;
                 Rebuild();
                 return;
             }
@@ -364,10 +374,11 @@ internal static class Panel
     }
 
     /// <summary>
-    /// Writes the chosen cadence for the row the list belongs to. Off removes the
-    /// record, which is the only way a cadence is ever deleted.
+    /// Carries out the item the user picked. A cadence writes or removes the record
+    /// for that session; keep and stop keeping write or remove the pin; restart asks
+    /// the tray to open one tab and does nothing else.
     /// </summary>
-    private static void Choose(Cadence cadence)
+    private static void Choose(PanelFlyoutItem item)
     {
         if (_layout.Flyout is not { } flyout)
         {
@@ -375,6 +386,34 @@ internal static class Panel
         }
 
         var row = _layout.Rows[flyout.RowIndex];
+        switch (item.Action)
+        {
+            case PanelFlyoutAction.Cadence:
+                SetCadence(row, item.Cadence);
+                break;
+            case PanelFlyoutAction.Keep:
+                Keep(row);
+                break;
+            case PanelFlyoutAction.StopKeeping:
+                new PinStore(Paths.Pins).Remove(row.Reference.SessionId);
+                _kept = KeptNow();
+                break;
+            case PanelFlyoutAction.Restart:
+                RestartRow(row);
+                break;
+        }
+
+        _flyoutFor = null;
+        _hoveredItem = null;
+        Rebuild();
+    }
+
+    /// <summary>
+    /// Writes the chosen cadence for the row the list belongs to. Off removes the
+    /// record, which is the only way a cadence is ever deleted.
+    /// </summary>
+    private static void SetCadence(PanelRow row, Cadence cadence)
+    {
         var store = new ScheduleStore(Paths.Schedules);
         if (cadence == Cadence.Off)
         {
@@ -394,15 +433,65 @@ internal static class Panel
             store.Write(schedule);
             _schedules[row.Reference] = schedule;
         }
+    }
 
-        _flyoutFor = null;
-        _hoveredCadence = null;
-        Rebuild();
+    /// <summary>
+    /// Keeps a session. The conversation is recorded now, while the session is still
+    /// findable, because that is the only moment the search is cheap.
+    /// </summary>
+    private static void Keep(PanelRow row)
+    {
+        var session = _sessions.FirstOrDefault(
+            candidate => string.Equals(
+                candidate.Reference.SessionId, row.Reference.SessionId, StringComparison.Ordinal));
+        var pin = new Pin(
+            row.Reference.SessionId,
+            session?.Name,
+            row.Folder,
+            Transcripts.Find(Paths.PiSessions, row.Reference.SessionId),
+            _now);
+        new PinStore(Paths.Pins).Write(pin);
+        _kept = KeptNow();
+    }
+
+    /// <summary>
+    /// Starts one tab for a kept session that is not running, and only when the plan
+    /// says it will work. A failure to start is the tray's to report, not the panel's
+    /// to crash on.
+    /// </summary>
+    private static void RestartRow(PanelRow row)
+    {
+        var pin = new PinStore(Paths.Pins).ReadAll().FirstOrDefault(
+            candidate => string.Equals(
+                candidate.SessionId, row.Reference.SessionId, StringComparison.Ordinal));
+        if (pin is null)
+        {
+            return;
+        }
+
+        var plan = Restart.View(pin, running: false);
+        if (plan.Launch is { } launch)
+        {
+            Launcher(launch);
+        }
+    }
+
+    /// <summary>Every pin, with the answer to whether it could be restarted now.</summary>
+    private static IReadOnlyList<KeptSession> KeptNow()
+    {
+        var running = new HashSet<string>(
+            _sessions.Select(session => session.Reference.SessionId), StringComparer.Ordinal);
+        return
+        [
+            .. new PinStore(Paths.Pins)
+                .ReadAll()
+                .Select(pin => new KeptSession(pin, Restart.View(pin, running.Contains(pin.SessionId)))),
+        ];
     }
 
     private static void Rebuild()
     {
-        _layout = PanelModel.Build(_sessions, _now, _autostartOn, _schedules, _flyoutFor);
+        _layout = PanelModel.Build(_sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept);
         Native.InvalidateRect(_window, 0, false);
     }
 
@@ -431,12 +520,12 @@ internal static class Panel
         {
             if (ItemAt(flyout, pointX, pointY) is { } item)
             {
-                Choose(item.Cadence);
+                Choose(item);
             }
             else
             {
                 _flyoutFor = null;
-                _hoveredCadence = null;
+                _hoveredItem = null;
                 Rebuild();
             }
 
@@ -462,7 +551,7 @@ internal static class Panel
                     Autostart.Remove();
                 }
 
-                _layout = PanelModel.Build(_sessions, _now, _autostartOn, _schedules, _flyoutFor);
+                _layout = PanelModel.Build(_sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept);
                 Native.InvalidateRect(_window, 0, false);
                 break;
         }
@@ -616,7 +705,7 @@ internal static class Panel
 
             foreach (var item in flyout.Items)
             {
-                if (_hoveredCadence == item.Cadence)
+                if (_hoveredItem == item)
                 {
                     var hover = Scaled(item.Bounds);
                     Native.FillRect(dc, ref hover, Brush(PanelTheme.Hover));

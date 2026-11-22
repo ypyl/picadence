@@ -29,6 +29,49 @@ public static class Paths
         "sessions");
 
     /// <summary>
+    /// The program that runs pi: a real executable when one exists, otherwise the
+    /// .cmd shim pi installs, which has to be started through cmd.exe.
+    /// </summary>
+    public static string? PiLauncher()
+    {
+        var bin = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".pi",
+            "agent",
+            "bin");
+        foreach (var extension in new[] { ".exe", ".cmd" })
+        {
+            var candidate = Path.Combine(bin, "pi" + extension);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+                     .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            foreach (var extension in new[] { ".exe", ".cmd" })
+            {
+                try
+                {
+                    var candidate = Path.Combine(directory.Trim('"'), "pi" + extension);
+                    if (File.Exists(candidate))
+                    {
+                        return candidate;
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    // A path entry that is not a path is not a reason to stop looking.
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Windows Terminal when it is installed: the Store alias first, because that
     /// is what a shell finds, then the directories on the path.
     /// </summary>

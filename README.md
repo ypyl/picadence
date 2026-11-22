@@ -113,8 +113,10 @@ instead: the conversation is gone, the folder is gone, or Windows Terminal is no
 installed. A session that is running offers no restart, because two processes
 writing one conversation is not something to leave to a misclick.
 
-This is the one thing picadence starts. It runs `wt.exe` with `pi --session` for a
-row you kept, and nothing else, ever.
+This is the one thing picadence starts. It opens `wt.exe` on one command, which
+runs pi on that session's conversation, and nothing else, ever. On Windows pi is a
+`.cmd` shim rather than a program, so the tab hands it to `cmd.exe` the way your
+own shell does.
 
 ## Install the pi side
 

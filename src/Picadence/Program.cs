@@ -136,12 +136,12 @@ internal static class Program
     /// </summary>
     internal static bool Start(Launch launch)
     {
-        if (launch.Arguments.Count == 0 || !File.Exists(launch.File))
+        if (launch.CommandLine.Length == 0 || !File.Exists(launch.File))
         {
             return false;
         }
 
-        var commandLine = Restart.CommandLine(launch);
+        var commandLine = launch.CommandLine;
         var buffer = new char[commandLine.Length + 1];
         commandLine.CopyTo(0, buffer, 0, commandLine.Length);
 

@@ -5,6 +5,13 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- Each pi tab now says what its session is doing, in the tab itself: a mark and
+  the session's name, so a tab that needs you looks different from one that is
+  working, even with picadence not running.
+- In Windows Terminal that state also shows as a ring on the tab and a progress
+  bar on the taskbar. `PICADENCE_TAB_PROGRESS=0` turns it off, and `=1` forces it
+  on in a terminal picadence does not recognise.
+
 ## picadence-v0.1.0
 
 - The tool is called picadence. The name it carried, piclaw, is another pi

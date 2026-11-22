@@ -13,6 +13,7 @@ import picadence, {
   pollPings,
   tabProgressSequence,
   tabTitle,
+  wantsTabProgress,
   reduce,
   stateDirectory,
 } from "./picadence.js";
@@ -352,6 +353,80 @@ test("a transition sets the tab title and a console run does not", async () => {
       delete process.env.LOCALAPPDATA;
     } else {
       process.env.LOCALAPPDATA = previous;
+    }
+    fs.rmSync(localAppData, { recursive: true, force: true });
+  }
+});
+
+test("a session in Windows Terminal carries its state there", () => {
+  assert.equal(wantsTabProgress({ WT_SESSION: "abc" }), true);
+  assert.equal(wantsTabProgress({ TERM_PROGRAM: "Windows_Terminal" }), true);
+  assert.equal(wantsTabProgress({}), false);
+  assert.equal(wantsTabProgress({ TERM_PROGRAM: "iTerm.app" }), false);
+});
+
+test("the switch overrides what the product detected", () => {
+  assert.equal(wantsTabProgress({ WT_SESSION: "abc", PICADENCE_TAB_PROGRESS: "0" }), false);
+  assert.equal(wantsTabProgress({ PICADENCE_TAB_PROGRESS: "1" }), true);
+  assert.equal(wantsTabProgress({ TERM_PROGRAM: "xterm", PICADENCE_TAB_PROGRESS: "1" }), true);
+});
+
+test("another terminal is written nothing", async () => {
+  const localAppData = fs.mkdtempSync(path.join(os.tmpdir(), "piclaw-notwt-"));
+  const saved = {
+    LOCALAPPDATA: process.env.LOCALAPPDATA,
+    WT_SESSION: process.env.WT_SESSION,
+    TERM_PROGRAM: process.env.TERM_PROGRAM,
+    PICADENCE_TAB_PROGRESS: process.env.PICADENCE_TAB_PROGRESS,
+  };
+  process.env.LOCALAPPDATA = localAppData;
+  delete process.env.WT_SESSION;
+  delete process.env.TERM_PROGRAM;
+  delete process.env.PICADENCE_TAB_PROGRESS;
+
+  const written = [];
+  const originalWrite = process.stdout.write;
+  process.stdout.write = (chunk) => {
+    written.push(String(chunk));
+    return true;
+  };
+
+  try {
+    const handlers = new Map();
+    const titles = [];
+    picadence({
+      on(type, handler) {
+        const list = handlers.get(type) ?? [];
+        list.push(handler);
+        handlers.set(type, list);
+      },
+    });
+
+    const ctx = {
+      mode: "tui",
+      model: { id: "test-model" },
+      sessionManager: { getSessionId: () => "not-wt-1", getSessionName: () => "plain" },
+      ui: { setTitle: (value) => titles.push(value) },
+    };
+
+    for (const handler of handlers.get("session_start")) {
+      await handler({ type: "session_start" }, ctx);
+    }
+    for (const handler of handlers.get("agent_start")) {
+      await handler({ type: "agent_start" }, ctx);
+    }
+
+    process.stdout.write = originalWrite;
+    assert.deepEqual(written.filter((chunk) => chunk.includes("]9;4;")), [], "no progress bytes");
+    assert.deepEqual(titles, ["plain", "● plain"], "the mark and the label are all it shows");
+  } finally {
+    process.stdout.write = originalWrite;
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
     }
     fs.rmSync(localAppData, { recursive: true, force: true });
   }

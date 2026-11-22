@@ -20,8 +20,11 @@ internal static class Program
     private static readonly SessionStore Store = new(Paths.Agents, IsProcessAlive);
     private static readonly ScheduleStore Schedules = new(Paths.Schedules);
 
+    private static readonly PinStore Pins = new(Paths.Pins);
+
     private static IReadOnlyList<AgentSession> _sessions = [];
     private static IReadOnlyDictionary<SessionRef, Schedule> _armed = new Dictionary<SessionRef, Schedule>();
+    private static IReadOnlyList<KeptSession> _kept = [];
     private static AgentState _shownState = AgentState.Idle;
 
     [UnmanagedCallersOnly]
@@ -30,7 +33,7 @@ internal static class Program
         switch (message)
         {
             case TrayCallbackMessage when (int)(lParam & 0xFFFF) is Native.WM_LBUTTONUP or Native.WM_RBUTTONUP:
-                Panel.Toggle(_sessions, _armed, DateTimeOffset.Now, _window);
+                Panel.Toggle(_sessions, _armed, DateTimeOffset.Now, _window, _kept);
                 return 0;
             case TrayCallbackMessage:
                 return 0;
@@ -64,6 +67,16 @@ internal static class Program
         // is already gone by the time a ping could be written for it.
         _sessions = Store.ReadAll(now);
 
+        // The kept list is read before the tick, so a restart that just happened
+        // is already visible as a live session on the same pass.
+        var running = new HashSet<string>(
+            _sessions.Select(session => session.Reference.SessionId), StringComparer.Ordinal);
+        _kept =
+        [
+            .. Pins.ReadAll()
+                .Select(pin => new KeptSession(pin, Restart.View(pin, running.Contains(pin.SessionId)))),
+        ];
+
         var tick = SchedulePlan.Plan(_sessions, Schedules.ReadAll(), now);
         HashSet<string> undelivered = new(StringComparer.Ordinal);
         foreach (var ping in tick.Pings)
@@ -95,7 +108,7 @@ internal static class Program
             Native.Shell_NotifyIconW(Native.NIM_MODIFY, ref _icon);
         }
 
-        Panel.Update(_sessions, _armed, now);
+        Panel.Update(_sessions, _armed, now, _kept);
     }
 
     /// <summary>A process id is alive when it can still be opened for a query.</summary>
@@ -114,6 +127,50 @@ internal static class Program
 
         Native.CloseHandle(handle);
         return true;
+    }
+
+    /// <summary>
+    /// Starts the one program the tray may start: a Windows Terminal tab that runs
+    /// pi on a kept session's conversation. It does not wait, and it holds nothing
+    /// of the process afterwards, because the tab outlives this call.
+    /// </summary>
+    internal static bool Start(Launch launch)
+    {
+        if (launch.Arguments.Count == 0 || !File.Exists(launch.File))
+        {
+            return false;
+        }
+
+        var commandLine = Restart.CommandLine(launch);
+        var buffer = new char[commandLine.Length + 1];
+        commandLine.CopyTo(0, buffer, 0, commandLine.Length);
+
+        var startup = new Native.StartupInfo { cb = Marshal.SizeOf<Native.StartupInfo>() };
+        bool started;
+        unsafe
+        {
+            fixed (char* line = buffer)
+            {
+                started = Native.CreateProcessW(
+                    0,
+                    line,
+                    0,
+                    0,
+                    false,
+                    Native.CREATE_NO_WINDOW,
+                    0,
+                    launch.WorkingDirectory,
+                    ref startup,
+                    out var process);
+                if (started)
+                {
+                    Native.CloseHandle(process.hThread);
+                    Native.CloseHandle(process.hProcess);
+                }
+            }
+        }
+
+        return started;
     }
 
     private static nint CreateIconFor(AgentState state) =>
@@ -153,6 +210,7 @@ internal static class Program
         }
 
         Panel.Register(instance);
+        Panel.Launcher = Start;
 
         _window = Native.CreateWindowExW(
             0, windowClass.lpszClassName, "picadence", Native.WS_POPUP,

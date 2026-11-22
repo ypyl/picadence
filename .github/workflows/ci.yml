@@ -49,6 +49,9 @@ jobs:
         shell: bash
         run: bash scripts/verify.sh
 
+      # shortcut: CI builds with the image's default SDK, this machine is pinned to
+      # 10.0.404; add global.json the first time the two disagree about a build or a
+      # format check
       # 0.0.0-ci.<run> says "this is not a release" where Windows shows a
       # version. A version belongs to a tag, and this workflow cuts none.
       - name: Publish

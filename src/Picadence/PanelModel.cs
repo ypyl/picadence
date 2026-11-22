@@ -97,8 +97,15 @@ public sealed class PanelLayout
     public DipRect EmptyBounds { get; init; }
     public IReadOnlyList<PanelRow> Rows { get; init; } = [];
     public IReadOnlyList<PanelActionRow> Actions { get; init; } = [];
-    public string? MoreText { get; init; }
-    public DipRect MoreBounds { get; init; }
+    /// <summary>How many rows the list has, and which one is at the top.</summary>
+    public int TotalRows { get; init; }
+
+    public int FirstRow { get; init; }
+
+    /// <summary>Where the list is, when there is more of it than fits.</summary>
+    public string? ScrollText { get; init; }
+
+    public DipRect ScrollBounds { get; init; }
 
     /// <summary>The cadence list, when a row has been right-clicked.</summary>
     public PanelFlyout? Flyout { get; init; }
@@ -166,7 +173,12 @@ public static class PanelModel
 
     /// <summary>A solid pin, for a session that is kept. Segoe MDL2 Assets.</summary>
     public const string KeptGlyph = "\uE842";
-    public const int MaxRows = 8;
+    /// <summary>How many rows one screen shows. The rest are a scroll away.</summary>
+    public const int VisibleRows = 5;
+
+    /// <summary>The first row shown for a scroll position, kept inside the list.</summary>
+    public static int FirstRow(int scroll, int total) =>
+        Math.Clamp(scroll, 0, Math.Max(0, total - VisibleRows));
 
     /// <summary>The cadence list: wide enough for "every 15 minutes", six rows tall.</summary>
     public const double FlyoutWidth = 180;
@@ -197,7 +209,8 @@ public static class PanelModel
         bool autostartOn,
         IReadOnlyDictionary<SessionRef, Schedule>? schedules = null,
         SessionRef? flyoutFor = null,
-        IReadOnlyList<KeptSession>? kept = null)
+        IReadOnlyList<KeptSession>? kept = null,
+        int scroll = 0)
     {
         var keptById = new Dictionary<string, KeptSession>(StringComparer.Ordinal);
         foreach (var entry in kept ?? [])
@@ -216,10 +229,8 @@ public static class PanelModel
             .ThenBy(session => session.Folder, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var shown = ordered.Take(MaxRows).ToList();
-
         // Kept sessions that are not running come after the live ones, oldest
-        // first, and share the same row budget so the panel stays one screen.
+        // first. Together they are one list, and the window shows five of it.
         var liveIds = new HashSet<string>(
             ordered.Select(session => session.Reference.SessionId), StringComparer.Ordinal);
         var keptRows = keptById.Values
@@ -227,9 +238,16 @@ public static class PanelModel
             .OrderBy(entry => entry.Pin.KeptAt)
             .ThenBy(entry => entry.Pin.SessionId, StringComparer.Ordinal)
             .ToList();
-        var keptRoom = Math.Max(0, MaxRows - shown.Count);
-        var shownKept = keptRows.Take(keptRoom).ToList();
-        var hidden = (ordered.Count - shown.Count) + (keptRows.Count - shownKept.Count);
+
+        var total = ordered.Count + keptRows.Count;
+        var first = FirstRow(scroll, total);
+        var shown = ordered.Skip(first).Take(VisibleRows).ToList();
+        var keptFirst = Math.Max(0, first - ordered.Count);
+        var shownKept = keptRows
+            .Skip(keptFirst)
+            .Take(Math.Max(0, VisibleRows - shown.Count))
+            .ToList();
+
         var inner = Width - (2 * Padding);
         var header = new DipRect(Padding, Padding, inner, HeaderHeight);
         var y = Padding + HeaderHeight;
@@ -285,12 +303,16 @@ public static class PanelModel
             y += RowHeight;
         }
 
-        var moreText = hidden > 0 ? string.Create(CultureInfo.InvariantCulture, $"+{hidden} more") : null;
-        var moreBounds = default(DipRect);
-        if (moreText is not null)
+        var scrollText = total > VisibleRows
+            ? string.Create(
+                CultureInfo.InvariantCulture,
+                $"{first + 1}\u2013{first + rows.Count} of {total}  \u00b7  scroll")
+            : null;
+        var scrollBounds = default(DipRect);
+        if (scrollText is not null)
         {
             y += RowSpacing;
-            moreBounds = new DipRect(Padding + 24, y, inner - 24, 18);
+            scrollBounds = new DipRect(Padding + 24, y, inner - 24, 18);
             y += 18;
         }
 
@@ -344,8 +366,10 @@ public static class PanelModel
             EmptyBounds = emptyBounds,
             Rows = rows,
             Actions = actions,
-            MoreText = moreText,
-            MoreBounds = moreBounds,
+            TotalRows = total,
+            FirstRow = first,
+            ScrollText = scrollText,
+            ScrollBounds = scrollBounds,
             Flyout = flyout,
         };
     }

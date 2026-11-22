@@ -18,6 +18,8 @@ internal static class Native
     internal const int WM_ERASEBKGND = 0x0014;
     internal const int WM_LBUTTONUP = 0x0201;
     internal const int WM_MOUSEMOVE = 0x0200;
+
+    internal const int WM_MOUSEWHEEL = 0x020A;
     internal const int WM_MOUSELEAVE = 0x02A3;
     internal const int WM_SETCURSOR = 0x0020;
     internal const int HTCLIENT = 1;

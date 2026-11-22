@@ -85,8 +85,8 @@ public class PanelModelTests
         Assert.InRange(TraySettings.PollMilliseconds, 1, 2000);
     }
 
-    [Fact]
-    public void The_panel_caps_the_rows_and_says_how_many_are_hidden()
+    [Fact(DisplayName = "the panel shows five rows and says where the rest are")]
+    public void The_panel_shows_five_rows_and_says_where_the_rest_are()
     {
         var sessions = Enumerable.Range(1, 12)
             .Select(pid => Session(pid, AgentState.Working, secondsAgo: pid))
@@ -94,8 +94,58 @@ public class PanelModelTests
 
         var layout = PanelModel.Build(sessions, Now, false);
 
-        Assert.Equal(PanelModel.MaxRows, layout.Rows.Count);
-        Assert.Equal("+4 more", layout.MoreText);
+        Assert.Equal(PanelModel.VisibleRows, layout.Rows.Count);
+        Assert.Equal(12, layout.TotalRows);
+        Assert.Equal(0, layout.FirstRow);
+        Assert.Equal("1\u20135 of 12  \u00b7  scroll", layout.ScrollText);
+
+        // And nothing to say when everything fits.
+        var small = PanelModel.Build(sessions.Take(5).ToList(), Now, false);
+        Assert.Equal(5, small.Rows.Count);
+        Assert.Null(small.ScrollText);
+    }
+
+    [Fact(DisplayName = "scrolling reaches the rows past the fifth")]
+    public void Scrolling_reaches_the_rows_past_the_fifth()
+    {
+        var sessions = Enumerable.Range(1, 12)
+            .Select(pid => Session(pid, AgentState.Working, secondsAgo: pid))
+            .ToList();
+
+        // Newest first, so the last row of the list is the oldest session.
+        var end = PanelModel.Build(sessions, Now, false, scroll: 99);
+
+        Assert.Equal(7, end.FirstRow);
+        Assert.Equal(PanelModel.VisibleRows, end.Rows.Count);
+        Assert.Equal("8\u201312 of 12  \u00b7  scroll", end.ScrollText);
+        Assert.Equal("picadence", end.Rows[^1].Folder);
+        Assert.Equal(PanelModel.FirstRow(99, 12), end.FirstRow);
+
+        // A list that fits does not scroll at all.
+        Assert.Equal(0, PanelModel.FirstRow(-3, 4));
+        Assert.Equal(0, PanelModel.FirstRow(0, 0));
+    }
+
+    [Fact(DisplayName = "kept rows are a scroll away, not a casualty of the window")]
+    public void Kept_rows_are_a_scroll_away_not_a_casualty_of_the_window()
+    {
+        var sessions = Enumerable.Range(1, 5)
+            .Select(pid => Session(pid, AgentState.Working, secondsAgo: pid))
+            .ToList();
+        var kept = new[]
+        {
+            new KeptSession(
+                new Pin("01a1fe3b-e1c8-71eb-afd8-f796496f0f78", "docs-site", @"C:\Users\me\docs-site", null, Now.AddHours(-1)),
+                new RestartPlan(RestartRefusal.None, new Launch("wt.exe", "wt.exe", @"C:\Users\me\docs-site"), string.Empty)),
+        };
+
+        var top = PanelModel.Build(sessions, Now, false, kept: kept);
+        Assert.Equal(PanelModel.VisibleRows, top.Rows.Count);
+        Assert.DoesNotContain(top.Rows, row => row.Kind == PanelRowKind.Kept);
+
+        var scrolled = PanelModel.Build(sessions, Now, false, kept: kept, scroll: 5);
+        Assert.Equal(PanelRowKind.Kept, scrolled.Rows[^1].Kind);
+        Assert.Equal(5, scrolled.Rows.Count);
     }
 
     [Fact]
@@ -412,19 +462,27 @@ public class PanelFlyoutTests
     {
         var sessions = Enumerable.Range(1, count).Select(pid => Session(pid, secondsAgo: pid)).ToList();
 
-        for (var row = 0; row < sessions.Count; row++)
+        foreach (var session in sessions)
         {
-            var layout = PanelModel.Build(sessions, Now, false, flyoutFor: sessions[row].Reference);
-            var flyout = Assert.IsType<PanelFlyout>(layout.Flyout);
+            var layout = PanelModel.Build(sessions, Now, false, flyoutFor: session.Reference);
+            if (layout.Flyout is null)
+            {
+                // Past the fifth row the list is a scroll away, and a row that is not
+                // on screen has nothing to open.
+                Assert.DoesNotContain(layout.Rows, row => row.Reference == session.Reference);
+                continue;
+            }
 
-            Assert.True(flyout.Bounds.X >= 0, $"row {row}: the list starts at {flyout.Bounds.X}");
+            var flyout = layout.Flyout;
+
+            Assert.True(flyout.Bounds.X >= 0, $"{session.Folder}: the list starts at {flyout.Bounds.X}");
             Assert.True(
                 flyout.Bounds.X + flyout.Bounds.Width <= layout.Width,
-                $"row {row}: the list ends at {flyout.Bounds.X + flyout.Bounds.Width}");
-            Assert.True(flyout.Bounds.Y >= 0, $"row {row}: the list starts at {flyout.Bounds.Y}");
+                $"{session.Folder}: the list ends at {flyout.Bounds.X + flyout.Bounds.Width}");
+            Assert.True(flyout.Bounds.Y >= 0, $"{session.Folder}: the list starts at {flyout.Bounds.Y}");
             Assert.True(
                 flyout.Bounds.Y + flyout.Bounds.Height <= layout.Height,
-                $"row {row}: the list ends at {flyout.Bounds.Y + flyout.Bounds.Height}");
+                $"{session.Folder}: the list ends at {flyout.Bounds.Y + flyout.Bounds.Height}");
             Assert.All(flyout.Items, item => Assert.True(flyout.Bounds.Contains(
                 item.Bounds.X, item.Bounds.Y)));
         }

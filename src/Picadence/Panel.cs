@@ -35,6 +35,9 @@ internal static class Panel
     /// <summary>The row whose pin is under the pointer, so the control reads as one.</summary>
     private static SessionRef? _hoveredPin;
 
+    /// <summary>The row whose start control is under the pointer.</summary>
+    private static SessionRef? _hoveredStart;
+
     /// <summary>Whether the tray is registered to start with Windows.</summary>
     private static bool _autostartOn;
 
@@ -143,6 +146,7 @@ internal static class Panel
         _hovered = null;
         _hoveredItem = null;
         _hoveredPin = null;
+        _hoveredStart = null;
         _flyoutFor = null;
     }
 
@@ -293,11 +297,12 @@ internal static class Panel
                 Rebuild();
                 return 0;
             case Native.WM_MOUSELEAVE:
-                if (_hovered is not null || _hoveredItem is not null || _hoveredPin is not null)
+                if (_hovered is not null || _hoveredItem is not null || _hoveredPin is not null || _hoveredStart is not null)
                 {
                     _hovered = null;
                     _hoveredItem = null;
                     _hoveredPin = null;
+                    _hoveredStart = null;
                     Native.InvalidateRect(hwnd, 0, false);
                 }
 
@@ -332,8 +337,9 @@ internal static class Panel
             ? ItemAt(flyout, pointX, pointY)
             : null;
         var overPin = hit == PanelHit.Pin ? RowAt(pointX, pointY)?.Reference : null;
+        var overStart = hit == PanelHit.Start ? RowAt(pointX, pointY)?.Reference : null;
 
-        if (over == _hovered && overItem == _hoveredItem && overPin == _hoveredPin)
+        if (over == _hovered && overItem == _hoveredItem && overPin == _hoveredPin && overStart == _hoveredStart)
         {
             return;
         }
@@ -341,9 +347,10 @@ internal static class Panel
         _hovered = over;
         _hoveredItem = overItem;
         _hoveredPin = overPin;
+        _hoveredStart = overStart;
         Native.SetCursor(Cursor());
 
-        if (over is not null || overItem is not null || overPin is not null)
+        if (over is not null || overItem is not null || overPin is not null || overStart is not null)
         {
             var tracking = new Native.TrackMouseEventData
             {
@@ -427,9 +434,6 @@ internal static class Panel
         {
             case PanelFlyoutAction.Cadence:
                 SetCadence(row, item.Cadence);
-                break;
-            case PanelFlyoutAction.Restart:
-                RestartRow(row);
                 break;
         }
 
@@ -595,6 +599,10 @@ internal static class Panel
         // does not act on a session.
         switch (_layout.HitTest(pointX, pointY))
         {
+            case PanelHit.Start when RowAt(pointX, pointY) is { } started:
+                RestartRow(started);
+                _hoveredStart = null;
+                break;
             case PanelHit.Pin when RowAt(pointX, pointY) is { } pinned:
                 TogglePin(pinned);
                 _hoveredPin = null;
@@ -691,7 +699,8 @@ internal static class Panel
             Native.SelectObject(dc, previousBrush);
 
             var textLeft = row.Bounds.X + 26;
-            var textWidth = row.PinBounds.X - 8 - textLeft;
+            var controlsLeft = row.StartBounds.Width > 0 ? row.StartBounds.X : row.PinBounds.X;
+            var textWidth = controlsLeft - 8 - textLeft;
 
             Text(dc, row.Folder, new DipRect(textLeft, row.Bounds.Y + 5, textWidth, 20),
                 14, Native.FW_NORMAL, PanelTheme.PrimaryText,
@@ -710,17 +719,29 @@ internal static class Panel
             Text(dc, row.Age, row.AgeBounds, 12, Native.FW_NORMAL, PanelTheme.SecondaryText,
                 Native.DT_RIGHT | Native.DT_SINGLELINE);
 
+            if (row.StartBounds.Width > 0)
+            {
+                if (_hoveredStart == row.Reference)
+                {
+                    Control(dc, row.StartBounds);
+                }
+
+                Text(
+                    dc,
+                    PanelModel.StartGlyph,
+                    row.StartBounds,
+                    12,
+                    Native.FW_NORMAL,
+                    PanelTheme.PrimaryText,
+                    Native.DT_CENTER | Native.DT_VCENTER | Native.DT_SINGLELINE,
+                    GlyphFont(12));
+            }
+
             // The pin says which state it is in by its shape, and the colour repeats
             // it. A hover fill is what makes it read as a control rather than a mark.
             if (_hoveredPin == row.Reference)
             {
-                var hover = Scaled(row.PinBounds);
-                var pinPen = Native.SelectObject(dc, Native.GetStockObject(Native.NULL_PEN));
-                var pinBrush = Native.SelectObject(dc, Brush(PanelTheme.Hover));
-                var pinRadius = (int)Math.Round(4 * _scale);
-                Native.RoundRect(dc, hover.left, hover.top, hover.right, hover.bottom, pinRadius, pinRadius);
-                Native.SelectObject(dc, pinBrush);
-                Native.SelectObject(dc, pinPen);
+                Control(dc, row.PinBounds);
             }
 
             Text(
@@ -808,6 +829,18 @@ internal static class Panel
                     Native.DT_LEFT | Native.DT_VCENTER | Native.DT_SINGLELINE);
             }
         }
+    }
+
+    /// <summary>The rounded fill behind a control the pointer is over.</summary>
+    private static void Control(nint dc, DipRect bounds)
+    {
+        var hover = Scaled(bounds);
+        var previousPen = Native.SelectObject(dc, Native.GetStockObject(Native.NULL_PEN));
+        var previousBrush = Native.SelectObject(dc, Brush(PanelTheme.Hover));
+        var radius = (int)Math.Round(4 * _scale);
+        Native.RoundRect(dc, hover.left, hover.top, hover.right, hover.bottom, radius, radius);
+        Native.SelectObject(dc, previousBrush);
+        Native.SelectObject(dc, previousPen);
     }
 
     private static void Text(

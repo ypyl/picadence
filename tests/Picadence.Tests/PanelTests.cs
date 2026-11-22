@@ -575,16 +575,12 @@ public class PanelKeptTests
         Assert.Equal("windows terminal is not installed", Assert.Single(layout.Rows).Detail);
     }
 
-    [Fact(DisplayName = "a kept row that can restart offers it")]
-    public void A_kept_row_that_can_restart_offers_it()
+    [Fact(DisplayName = "a kept row has no menu, because its actions are on it")]
+    public void A_kept_row_has_no_menu_because_its_actions_are_on_it()
     {
         var layout = PanelModel.Build([], Now, false, flyoutFor: new SessionRef(0, KeptId), kept: [Kept(Pin())]);
 
-        var flyout = Assert.IsType<PanelFlyout>(layout.Flyout);
-        Assert.Equal("Kept session", flyout.Header);
-        Assert.Equal(["Restart"], flyout.Items.Select(item => item.Label));
-        Assert.Equal(PanelFlyoutAction.Restart, flyout.Items[0].Action);
-
+        Assert.Null(layout.Flyout);
         var row = Assert.Single(layout.Rows);
         Assert.True(row.CanRestart);
         Assert.Equal(string.Empty, row.Detail);
@@ -651,6 +647,52 @@ public class PanelPinTests
         Assert.Equal(PanelHit.Row, layout.HitTest(row.Bounds.X + 40, row.Bounds.Y + 10));
         Assert.Equal(PanelPointer.Arrow, PanelCursor.For(PanelHit.Row));
         Assert.Equal(PanelPointer.Hand, PanelCursor.For(PanelHit.Pin));
+    }
+
+    [Fact(DisplayName = "the start control restarts a kept session")]
+    public void The_start_control_restarts_a_kept_session()
+    {
+        var layout = PanelModel.Build([], Now, false, kept: [Kept()]);
+        var row = Assert.Single(layout.Rows);
+
+        Assert.True(row.StartBounds.Width > 0);
+        Assert.Equal(PanelHit.Start, layout.HitTest(
+            row.StartBounds.X + (row.StartBounds.Width / 2),
+            row.StartBounds.Y + (row.StartBounds.Height / 2)));
+        Assert.Equal(PanelPointer.Hand, PanelCursor.For(PanelHit.Start));
+
+        // Left of the pin, inside the row, and the pin still answers as the pin.
+        Assert.True(row.StartBounds.X + row.StartBounds.Width <= row.PinBounds.X, "before the pin");
+        Assert.True(row.Bounds.Contains(row.StartBounds.X, row.StartBounds.Y), "inside the row");
+        Assert.Equal(PanelHit.Pin, layout.HitTest(row.PinBounds.X + 4, row.PinBounds.Y + 4));
+
+        // And the row's own body still does nothing.
+        Assert.Equal(PanelHit.Row, layout.HitTest(row.Bounds.X + 40, row.Bounds.Y + 10));
+    }
+
+    [Fact(DisplayName = "a kept row that cannot restart has no start control")]
+    public void A_kept_row_that_cannot_restart_has_no_start_control()
+    {
+        var pin = new Pin(
+            "01a1fe3b-e1c8-71eb-afd8-f796496f0f78",
+            "docs-site",
+            @"C:\Users\me\docs-site",
+            null,
+            Now.AddHours(-1));
+        var layout = PanelModel.Build(
+            [],
+            Now,
+            false,
+            kept:
+            [
+                new KeptSession(
+                    pin,
+                    new RestartPlan(RestartRefusal.NoConversation, null, "the conversation is gone")),
+            ]);
+
+        var row = Assert.Single(layout.Rows);
+        Assert.Equal(default, row.StartBounds);
+        Assert.Equal(PanelHit.Pin, layout.HitTest(row.PinBounds.X + 4, row.PinBounds.Y + 4));
     }
 
     [Fact(DisplayName = "a kept row shows the solid pin and an unkept row the outline")]

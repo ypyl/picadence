@@ -17,6 +17,7 @@ public enum PanelHit
     None,
     Row,
     Pin,
+    Start,
     Flyout,
     Autostart,
     Quit,
@@ -48,6 +49,7 @@ public sealed record PanelRow(
     DipRect Bounds,
     DipRect AgeBounds,
     DipRect PinBounds,
+    DipRect StartBounds,
     SessionRef Reference,
     AgentState State,
     string Folder,
@@ -66,7 +68,6 @@ public sealed record KeptSession(Pin Pin, RestartPlan Plan);
 public enum PanelFlyoutAction
 {
     Cadence,
-    Restart,
 }
 
 /// <summary>One item in the list a right click opens on a row.</summary>
@@ -129,6 +130,11 @@ public sealed class PanelLayout
 
         foreach (var row in Rows)
         {
+            if (row.StartBounds.Width > 0 && row.StartBounds.Contains(x, y))
+            {
+                return PanelHit.Start;
+            }
+
             if (row.PinBounds.Contains(x, y))
             {
                 return PanelHit.Pin;
@@ -173,6 +179,9 @@ public static class PanelModel
 
     /// <summary>A solid pin, for a session that is kept. Segoe MDL2 Assets.</summary>
     public const string KeptGlyph = "\uE842";
+
+    /// <summary>A play triangle, for starting a kept session. Segoe MDL2 Assets.</summary>
+    public const string StartGlyph = "\uE768";
     /// <summary>How many rows one screen shows. The rest are a scroll away.</summary>
     public const int VisibleRows = 5;
 
@@ -265,6 +274,7 @@ public static class PanelModel
                     AgeWidth,
                     16),
                 PinOf(bounds),
+                StartBounds: default,
                 session.Reference,
                 session.State,
                 session.Folder,
@@ -290,6 +300,7 @@ public static class PanelModel
                     AgeWidth,
                     16),
                 PinOf(bounds),
+                entry.Plan.CanRestart ? StartOf(PinOf(bounds)) : default,
                 new SessionRef(0, entry.Pin.SessionId),
                 AgentState.Idle,
                 Restart.Leaf(entry.Pin.Folder),
@@ -392,6 +403,13 @@ public static class PanelModel
         return null;
     }
 
+    /// <summary>Where the start control sits: immediately left of the pin.</summary>
+    private static DipRect StartOf(DipRect pin) => new(
+        pin.X - PinGap - PinSize,
+        pin.Y,
+        PinSize,
+        PinSize);
+
     /// <summary>Where the pin sits on a row: before the age, centred vertically.</summary>
     private static DipRect PinOf(DipRect row) => new(
         row.X + row.Width - RowPadding - AgeWidth - PinGap - PinSize,
@@ -435,12 +453,10 @@ public static class PanelModel
         }
 
         var row = rows[index];
-        var cadences = row.Kind == PanelRowKind.Live ? CadenceExtensions.Offered.Length : 0;
-        var restart = row.Kind == PanelRowKind.Kept && row.CanRestart ? 1 : 0;
-        var itemCount = cadences + restart;
+        var itemCount = row.Kind == PanelRowKind.Live ? CadenceExtensions.Offered.Length : 0;
         if (itemCount == 0)
         {
-            // Nothing left to offer: the pin carries the only action this row has.
+            // A kept row's actions are its own controls, so it has no menu.
             return null;
         }
 
@@ -482,18 +498,6 @@ public static class PanelModel
                 bounds = new DipRect(x + FlyoutPadding, itemY, FlyoutWidth - (2 * FlyoutPadding), FlyoutItemHeight);
             }
 
-        }
-        else if (row.CanRestart)
-        {
-            // A kept session that is not running can be restarted, and it is
-            // offered only when that would work. What is missing is said on the
-            // row, not in a greyed-out item nobody can press.
-            items.Add(new PanelFlyoutItem(
-                PanelFlyoutAction.Restart,
-                Cadence.Off,
-                bounds,
-                "Restart",
-                Selected: false));
         }
 
         var headerText = row.Kind == PanelRowKind.Live ? FlyoutHeader : KeptFlyoutHeader;
@@ -578,7 +582,7 @@ public enum PanelPointer
 public static class PanelCursor
 {
     public static PanelPointer For(PanelHit hit) =>
-        hit is PanelHit.Quit or PanelHit.Autostart or PanelHit.Flyout or PanelHit.Pin
+        hit is PanelHit.Quit or PanelHit.Autostart or PanelHit.Flyout or PanelHit.Pin or PanelHit.Start
             ? PanelPointer.Hand
             : PanelPointer.Arrow;
 }

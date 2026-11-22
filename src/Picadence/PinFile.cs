@@ -92,12 +92,13 @@ public static class PinFile
         return Encoding.UTF8.GetString(buffer.ToArray()) + "\n";
     }
 
-    /// <summary>A folder is kept only when it is a rooted path with no control
-    /// characters, so it can neither be relative nor carry a line to a terminal.</summary>
+    /// <summary>
+    /// A folder is kept when it is a path with no control characters, so it cannot
+    /// carry a line to a terminal. Whether it is absolute, and whether it still
+    /// exists, are questions for the restart, which says so on the row.
+    /// </summary>
     public static bool IsUsableFolder(string? folder) =>
-        folder is { Length: > 0 and <= MaxTextLength }
-        && Path.IsPathRooted(folder)
-        && !HasControl(folder);
+        folder is { Length: > 0 and <= MaxTextLength } && !HasControl(folder);
 
     /// <summary>A conversation is an absolute path to a file pi wrote, and nothing
     /// else. Whether it still exists is a question for the restart, not for the read.</summary>

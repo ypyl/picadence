@@ -9,6 +9,9 @@ public static class StateFile
 {
     private const int MaxFolderLength = 40;
 
+    /// <summary>Long enough for a path Windows will take, and no longer.</summary>
+    private const int MaxCwdLength = 260;
+
     public static bool TryRead(
         string json,
         SessionRef reference,
@@ -44,10 +47,11 @@ public static class StateFile
                 return false;
             }
 
+            var cwd = Truncate(Text(root, "cwd"), MaxCwdLength);
             var folder = Text(root, "folder") ?? string.Empty;
             if (string.IsNullOrWhiteSpace(folder))
             {
-                folder = FolderOf(Text(root, "cwd"));
+                folder = FolderOf(cwd);
             }
 
             if (string.IsNullOrWhiteSpace(folder))
@@ -65,7 +69,10 @@ public static class StateFile
                 Truncate(Text(root, "model"), 60),
                 state,
                 Truncate(Text(root, "detail"), 40),
-                updatedAt);
+                updatedAt)
+            {
+                Cwd = cwd,
+            };
             return true;
         }
     }

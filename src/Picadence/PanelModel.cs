@@ -274,7 +274,7 @@ public static class PanelModel
                 PinOf(bounds),
                 new SessionRef(0, entry.Pin.SessionId),
                 AgentState.Idle,
-                entry.Pin.Folder,
+                Restart.Leaf(entry.Pin.Folder),
                 "not running",
                 entry.Plan.Note,
                 "kept " + Age.Format(now - entry.Pin.KeptAt),

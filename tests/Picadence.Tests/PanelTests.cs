@@ -470,7 +470,8 @@ public class PanelKeptTests
         var row = Assert.Single(layout.Rows);
         Assert.Equal(PanelRowKind.Kept, row.Kind);
         Assert.Equal("not running", row.StateWord);
-        Assert.Equal(@"C:\Users\me\docs-site", row.Folder);
+        // A row names a place briefly, the way a live row does.
+        Assert.Equal("docs-site", row.Folder);
         Assert.Equal("kept 2h", row.Age);
         Assert.Equal("nothing running", layout.Summary);
 

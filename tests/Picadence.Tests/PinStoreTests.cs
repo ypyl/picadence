@@ -59,7 +59,6 @@ public class PinStoreTests : IDisposable
     [Theory(DisplayName = "a pin that cannot be read exactly is not used")]
     [InlineData("not json")]
     [InlineData("{\"sessionId\":\"someone-else\",\"folder\":\"C:\\\\x\",\"keptAt\":\"2026-11-22T19:31:04Z\"}")]
-    [InlineData("{\"sessionId\":\"pinned\",\"folder\":\"relative\",\"keptAt\":\"2026-11-22T19:31:04Z\"}")]
     [InlineData("{\"sessionId\":\"pinned\",\"folder\":\"C:\\\\x\",\"transcript\":\"C:\\\\x\\\\a.txt\",\"keptAt\":\"2026-11-22T19:31:04Z\"}")]
     [InlineData("{\"sessionId\":\"pinned\",\"folder\":\"C:\\\\x\"}")]
     public void A_pin_that_cannot_be_read_exactly_is_not_used(string json)
@@ -68,6 +67,40 @@ public class PinStoreTests : IDisposable
         File.WriteAllText(Path.Combine(_directory, "pinned.json"), json);
 
         Assert.Empty(new PinStore(_directory).ReadAll());
+    }
+
+    [Fact(DisplayName = "a kept session is read back with the folder pi reported")]
+    public void A_kept_session_is_read_back_with_the_folder_pi_reported()
+    {
+        // The row shows the folder's name, and the pin has to keep the place. This
+        // is the chain a click on the pin walks: the state file, the pin, the read.
+        const string json = @"{""state"":""done"",""folder"":""trayclaw"",""cwd"":""C:\\Users\\me\\projects\\trayclaw""}";
+        var reference = new SessionRef(1234, Sample().SessionId);
+
+        Assert.True(StateFile.TryRead(json, reference, Kept, out var session));
+
+        var pin = new Pin(session.Reference.SessionId, session.Name, session.Cwd!, null, Kept);
+        new PinStore(_directory).Write(pin);
+
+        var reread = Assert.Single(new PinStore(_directory).ReadAll());
+        Assert.Equal(@"C:\Users\me\projects\trayclaw", reread.Folder);
+        Assert.True(Path.IsPathRooted(reread.Folder), "a folder name is not a place: [" + reread.Folder + "]");
+    }
+
+    [Fact(DisplayName = "a pin with a folder that is not a place is read, and refused later")]
+    public void A_pin_with_a_folder_that_is_not_a_place_is_read_and_refused_later()
+    {
+        // An older extension reported only the folder's name. The pin still shows,
+        // and the restart says what is wrong instead of the click doing nothing.
+        Directory.CreateDirectory(_directory);
+        var pin = new Pin("pinned", "x", "relative", null, Kept);
+        File.WriteAllText(Path.Combine(_directory, "pinned.json"), PinFile.ToJson(pin));
+
+        Assert.Single(new PinStore(_directory).ReadAll());
+
+        var plan = Restart.Plan(pin, running: false, terminal: "wt.exe", _ => true, _ => true, _directory);
+        Assert.Equal(RestartRefusal.NoFolder, plan.Refusal);
+        Assert.Equal("the folder is gone", plan.Note);
     }
 
     [Fact(DisplayName = "a pin whose file name is not a session id is skipped")]

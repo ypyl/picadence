@@ -46,6 +46,9 @@ public class StateFileTests
 
         Assert.True(StateFile.TryRead(json, Reference, Now, out var session));
         Assert.Equal("picadence", session.Folder);
+
+        // The row shows the name; a restart needs the place, so both are kept.
+        Assert.Equal(@"C:\Users\ypyl\projects\picadence", session.Cwd);
     }
 
     [Theory]

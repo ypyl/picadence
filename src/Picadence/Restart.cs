@@ -40,7 +40,9 @@ public static class Restart
             return new RestartPlan(RestartRefusal.Running, null, "already running");
         }
 
-        if (!PinFile.IsUsableFolder(pin.Folder) || !directoryExists(pin.Folder))
+        if (!PinFile.IsUsableFolder(pin.Folder)
+            || !Path.IsPathRooted(pin.Folder)
+            || !directoryExists(pin.Folder))
         {
             return new RestartPlan(RestartRefusal.NoFolder, null, "the folder is gone");
         }
@@ -147,7 +149,8 @@ public static class Restart
         return "\"" + escaped + new string('\\', trailing) + "\"";
     }
 
-    private static string Leaf(string folder)
+    /// <summary>The last segment of a path, for a row that has to name a place briefly.</summary>
+    public static string Leaf(string folder)
     {
         try
         {

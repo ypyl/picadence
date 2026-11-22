@@ -479,10 +479,13 @@ internal static class Panel
         var session = _sessions.FirstOrDefault(
             candidate => string.Equals(
                 candidate.Reference.SessionId, row.Reference.SessionId, StringComparison.Ordinal));
+        // The row shows a folder name; a restart needs a place. pi reports both, and
+        // the absolute one is what a pin keeps.
+        var folder = session?.Cwd is { Length: > 0 } cwd ? cwd : row.Folder;
         var pin = new Pin(
             row.Reference.SessionId,
             session?.Name,
-            row.Folder,
+            folder,
             Transcripts.Find(Paths.PiSessions, row.Reference.SessionId),
             _now);
         new PinStore(Paths.Pins).Write(pin);

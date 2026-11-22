@@ -18,4 +18,10 @@ public sealed record AgentSession(
     DateTimeOffset UpdatedAt)
 {
     public int Pid => Reference.Pid;
+
+    /// <summary>
+    /// The full working directory, when pi reported one. The panel shows
+    /// <see cref="Folder"/>; a restart needs this, because a name is not a place.
+    /// </summary>
+    public string? Cwd { get; init; }
 }

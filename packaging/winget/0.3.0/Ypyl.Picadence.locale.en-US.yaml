@@ -1,5 +1,5 @@
 PackageIdentifier: Ypyl.Picadence
-PackageVersion: 0.2.0
+PackageVersion: 0.3.0
 PackageLocale: en-US
 Publisher: Yauhen Pyl
 PublisherUrl: https://github.com/ypyl
@@ -26,6 +26,6 @@ Tags:
   - terminal
   - ai
   - pi
-ReleaseNotesUrl: https://github.com/ypyl/picadence/releases/tag/picadence-v0.2.0
+ReleaseNotesUrl: https://github.com/ypyl/picadence/releases/tag/picadence-v0.3.0
 ManifestType: defaultLocale
 ManifestVersion: 1.6.0

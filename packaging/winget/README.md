@@ -1,6 +1,6 @@
 # winget manifests
 
-The files under `0.2.0/` are exactly what went to
+The files under `0.3.0/` are exactly what went to
 [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) in
 [pull request 487538](https://github.com/microsoft/winget-pkgs/pull/487538), for
 `Ypyl.Picadence`. They live here so a release edits one file instead of
@@ -21,7 +21,7 @@ installer, no runtime.
 ## Cutting a new version
 
 1. Cut the release, note the asset URL and its SHA256 from the release notes.
-2. Copy `0.2.0/` to `<new version>/` and change, in all three files,
+2. Copy `0.3.0/` to `<new version>/` and change, in all three files,
    `PackageVersion`, and in the installer file `InstallerUrl`, `InstallerSha256`
    and `ReleaseDate`.
 3. Check it before sending it:

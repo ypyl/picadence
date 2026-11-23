@@ -163,6 +163,18 @@ than leaving you to work it out:
 Both are checked on every refresh, so installing one while picadence is running is
 enough; there is no restart and no dialog.
 
+## Install the tray
+
+Two ways, same file:
+
+- **winget**: `winget install Ypyl.Picadence`. The package is in review in the
+  community repository; until it is merged, use the release asset.
+- **The release asset**: `picadence-v0.2.0-win-x64.exe` from the releases page.
+  Double-click it. There is no installer and no runtime to install: the file is the
+  program.
+
+Then install the pi half, below.
+
 ## Install the pi side
 
 The tray is half the product. The other half runs inside pi and reports state.

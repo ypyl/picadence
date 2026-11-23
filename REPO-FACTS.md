@@ -44,6 +44,12 @@ Rules:
   nothing that maps them to a window or a tab index. UIA can select a tab by its
   title and is what every third-party tool does; it is unsupported and fragile
   because titles change, repeat, and get renamed.
+- winget carries the tray as `Ypyl.Picadence`, `InstallerType: portable`, from the
+  release asset. The identifier is permanent. The first submission is
+  microsoft/winget-pkgs#487538, opened 2026-11-23 with manifests that passed
+  `winget validate` and a local `winget install --manifest`. A release is not on
+  winget until that pull request merges, so a version bump is a second pull request,
+  not a tag. The copies live in `packaging/winget/`.
 - A pid is not an identity, and the write time is not either. On 2026-11-23 a
   `folio` row stayed in the panel for eleven hours after its tab closed: the file
   named pid 29240, `OpenProcess(0x1000, false, 29240)` returned a handle, and

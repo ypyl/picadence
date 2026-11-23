@@ -186,7 +186,11 @@ public static class PanelModel
     /// </summary>
     public const double EstimatePerCharacter = 6.2;
     public const double RowPadding = 12;
-    public const double AgeWidth = 44;
+    /// <summary>The age column: at least this wide, and never wider than its text.</summary>
+    public const double MinAgeWidth = 24;
+
+    /// <summary>A cap, so one long phrase cannot push the pin off its column.</summary>
+    public const double MaxAgeWidth = 52;
 
     /// <summary>The pin control on a row: a target a mouse can hit, beside the age.</summary>
     public const double PinSize = 22;
@@ -194,11 +198,11 @@ public static class PanelModel
     /// <summary>The gap between the pin and the age it sits before.</summary>
     public const double PinGap = 6;
 
-    /// <summary>An outline pin, for a session that is not kept. Segoe MDL2 Assets.</summary>
-    public const string KeepGlyph = "\uE840";
+    /// <summary>An outline star, for a session that is not kept. Segoe MDL2 Assets.</summary>
+    public const string KeepGlyph = "\uE734";
 
-    /// <summary>A solid pin, for a session that is kept. Segoe MDL2 Assets.</summary>
-    public const string KeptGlyph = "\uE842";
+    /// <summary>A solid star, for a session that is kept. Segoe MDL2 Assets.</summary>
+    public const string KeptGlyph = "\uE735";
 
     /// <summary>A play triangle, for starting a kept session. Segoe MDL2 Assets.</summary>
     public const string StartGlyph = "\uE768";
@@ -294,6 +298,16 @@ public static class PanelModel
         var header = new DipRect(Padding, Padding, inner, HeaderHeight);
         var y = Padding + HeaderHeight;
 
+        // The age column is measured once from the widest age on screen, so the pins
+        // line up in a column and a short age does not open a hole before its pin.
+        var widest = shownKept
+            .Select(entry => Age.Format(now - entry.Pin.KeptAt))
+            .Concat(shown.Select(session => Age.Format(now - session.UpdatedAt)))
+            .Select(age => Measure(age, measure))
+            .DefaultIfEmpty(0)
+            .Max();
+        var ageWidth = Math.Clamp(widest, MinAgeWidth, MaxAgeWidth);
+
         var rows = new List<PanelRow>(shown.Count);
         foreach (var session in shown)
         {
@@ -302,11 +316,11 @@ public static class PanelModel
             rows.Add(new PanelRow(
                 bounds,
                 new DipRect(
-                    bounds.X + bounds.Width - RowPadding - AgeWidth,
+                    bounds.X + bounds.Width - RowPadding - ageWidth,
                     bounds.Y + 15,
-                    AgeWidth,
+                    ageWidth,
                     16),
-                PinOf(bounds),
+                PinOf(bounds, ageWidth),
                 StartBounds: default,
                 session.Reference,
                 session.State,
@@ -328,18 +342,18 @@ public static class PanelModel
             rows.Add(new PanelRow(
                 bounds,
                 new DipRect(
-                    bounds.X + bounds.Width - RowPadding - AgeWidth,
+                    bounds.X + bounds.Width - RowPadding - ageWidth,
                     bounds.Y + 15,
-                    AgeWidth,
+                    ageWidth,
                     16),
-                PinOf(bounds),
-                entry.Plan.CanRestart ? StartOf(PinOf(bounds)) : default,
+                PinOf(bounds, ageWidth),
+                entry.Plan.CanRestart ? StartOf(PinOf(bounds, ageWidth)) : default,
                 new SessionRef(0, entry.Pin.SessionId),
                 AgentState.Idle,
                 Restart.Leaf(entry.Pin.Folder),
                 "not running",
                 entry.Plan.Note,
-                "kept " + Age.Format(now - entry.Pin.KeptAt),
+                Age.Format(now - entry.Pin.KeptAt),
                 ScheduleText(entry.Pin.SessionId, armedById, now),
                 PanelRowKind.Kept,
                 Keeping: true,
@@ -462,8 +476,8 @@ public static class PanelModel
         PinSize);
 
     /// <summary>Where the pin sits on a row: before the age, centred vertically.</summary>
-    private static DipRect PinOf(DipRect row) => new(
-        row.X + row.Width - RowPadding - AgeWidth - PinGap - PinSize,
+    private static DipRect PinOf(DipRect row, double ageWidth) => new(
+        row.X + row.Width - RowPadding - ageWidth - PinGap - PinSize,
         row.Y + ((RowHeight - PinSize) / 2),
         PinSize,
         PinSize);

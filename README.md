@@ -11,7 +11,7 @@ It can also wake a session for you on a cadence you pick, and bring a session
 back into its own tab after you closed it.
 
 ![The picadence panel: five rows, one session working and four finished, each with
-its pin and its age, a line saying 1-5 of 7 and scroll, and one footer row with a
+its star and its age, a line saying 1-5 of 7 and scroll, and one footer row with a
 checkbox and an X](docs/panel.png)
 
 ## What the icon means
@@ -28,7 +28,8 @@ amber over green. A click on the icon opens a small dark panel with a summary an
 one row per session: folder, state in words, the tool it is running, how long ago
 it changed, the colour of that state, and two small controls.
 
-- The **pin** keeps a session, so its row survives the tab.
+- The **star** keeps a session, so its row survives the tab: an outline star
+  for one that is not kept, a solid star for one that is.
 - The **play** control appears on a kept row that is not running, and opens it
   again.
 
@@ -124,11 +125,11 @@ What follows from that:
 
 ## Keep a session, and bring it back
 
-Click the pin on a session's row, the small pin beside the age. A solid pin means
-it is kept: the row stays when the tab closes, saying `not running`, and a play
-triangle appears beside the pin. Click the triangle to open the session again;
-click the pin to stop keeping it. A kept row that cannot be restarted shows no
-triangle, and the row says why.
+Click the star on a session's row, the small star beside the age. A solid star
+means it is kept: the row stays when the tab closes, saying `not running`, and a
+play triangle appears beside the star. Click the triangle to open the session
+again; click the star to stop keeping it. A kept row that cannot be restarted
+shows no triangle, and the row says why.
 
 Restart opens one new Windows Terminal tab in that session's folder and continues
 the same session, conversation included. Because it is the same session, the tab

@@ -576,7 +576,9 @@ public class PanelKeptTests
         Assert.Equal("not running", row.StateWord);
         // A row names a place briefly, the way a live row does.
         Assert.Equal("docs-site", row.Folder);
-        Assert.Equal("kept 2h", row.Age);
+        // A plain age: the word "kept" was the widest phrase in the column, and the
+        // row already says it is not running under a solid star.
+        Assert.Equal("2h", row.Age);
         Assert.Equal("nothing running", layout.Summary);
 
         // Kept rows come after the ones that are running.
@@ -741,11 +743,13 @@ public class PanelPinTests
         Assert.Equal(PanelHit.Pin, layout.HitTest(row.PinBounds.X + 4, row.PinBounds.Y + 4));
     }
 
-    [Fact(DisplayName = "a kept row shows the solid pin and an unkept row the outline")]
-    public void A_kept_row_shows_the_solid_pin_and_an_unkept_row_the_outline()
+    [Fact(DisplayName = "a kept row shows the solid star and an unkept row the outline")]
+    public void A_kept_row_shows_the_solid_star_and_an_unkept_row_the_outline()
     {
-        Assert.Equal("\uE840", PanelModel.KeepGlyph);
-        Assert.Equal("\uE842", PanelModel.KeptGlyph);
+        // Stars, not pins: at 12 pixels a pin reads as a scribble and a star reads as
+        // a star, and the outline still says "not kept" by its shape alone.
+        Assert.Equal("\uE734", PanelModel.KeepGlyph);
+        Assert.Equal("\uE735", PanelModel.KeptGlyph);
         Assert.NotEqual(PanelModel.KeepGlyph, PanelModel.KeptGlyph);
     }
 }

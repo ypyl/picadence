@@ -43,8 +43,9 @@ public class AutostartTests
         var row = offLayout.Actions.Single(action => action.Action == PanelAction.Autostart);
 
         Assert.Equal("Start with Windows", row.Label);
-        Assert.Equal("off", row.Value);
-        Assert.Equal("on", onLayout.Actions.Single(action => action.Action == PanelAction.Autostart).Value);
+        Assert.False(row.Checked);
+        Assert.True(onLayout.Actions.Single(action => action.Action == PanelAction.Autostart).Checked);
+        Assert.True(row.BoxBounds.Width > 0, "the control carries a checkbox");
         Assert.Equal(PanelHit.Autostart, offLayout.HitTest(row.Bounds.X + 4, row.Bounds.Y + 4));
     }
 

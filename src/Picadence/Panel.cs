@@ -796,14 +796,30 @@ internal static class Panel
                 Native.SelectObject(dc, previousPen);
             }
 
-            Text(dc, action.Label, action.LabelBounds, 12, Native.FW_NORMAL, PanelTheme.PrimaryText,
-                Native.DT_LEFT | Native.DT_VCENTER | Native.DT_SINGLELINE);
-
-            if (action.Value.Length > 0)
+            if (action.BoxBounds.Width > 0)
             {
-                Text(dc, action.Value, action.ValueBounds, 12, Native.FW_NORMAL, PanelTheme.SecondaryText,
-                    Native.DT_RIGHT | Native.DT_VCENTER | Native.DT_SINGLELINE);
+                // The box says checked or not by its mark, which is a shape rather
+                // than a colour, and the outline makes an empty box read as a box.
+                var box = Scaled(action.BoxBounds);
+                Native.FrameRect(dc, ref box, Brush(PanelTheme.SecondaryText));
+
+                if (action.Checked)
+                {
+                    Text(
+                        dc,
+                        PanelModel.CheckGlyph,
+                        action.BoxBounds,
+                        12,
+                        Native.FW_NORMAL,
+                        PanelTheme.PrimaryText,
+                        Native.DT_CENTER | Native.DT_VCENTER | Native.DT_SINGLELINE,
+                        GlyphFont(12));
+                }
             }
+
+            var align = action.Action == PanelAction.Quit ? Native.DT_RIGHT : Native.DT_LEFT;
+            Text(dc, action.Label, action.LabelBounds, 12, Native.FW_NORMAL, PanelTheme.PrimaryText,
+                align | Native.DT_VCENTER | Native.DT_SINGLELINE);
         }
 
         if (_layout.Flyout is { } flyout)

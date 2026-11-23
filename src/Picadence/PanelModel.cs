@@ -30,13 +30,17 @@ public enum PanelAction
     Quit,
 }
 
+/// <summary>
+/// One control at the foot of the panel. A checkbox carries a box and its state;
+/// anything else carries only a label, aligned by the painter.
+/// </summary>
 public sealed record PanelActionRow(
     PanelAction Action,
     DipRect Bounds,
+    DipRect BoxBounds,
     DipRect LabelBounds,
-    DipRect ValueBounds,
     string Label,
-    string Value);
+    bool Checked);
 
 /// <summary>A row is either a session that is running or one the user kept.</summary>
 public enum PanelRowKind
@@ -169,7 +173,16 @@ public static class PanelModel
     /// <summary>How far the label and the value sit inside the hover fill.</summary>
     public const double ActionPadding = 12;
 
-    public const double ActionValueWidth = 48;
+    /// <summary>The checkbox: small enough to read as one, big enough to hit.</summary>
+    public const double CheckSize = 14;
+
+    /// <summary>How far the label sits from the box it belongs to.</summary>
+    public const double CheckGap = 8;
+
+    /// <summary>The width the checkbox control needs, and the width Quit needs.</summary>
+    public const double AutostartWidth = 168;
+
+    public const double QuitWidth = 72;
     public const double RowPadding = 12;
     public const double AgeWidth = 44;
 
@@ -187,6 +200,9 @@ public static class PanelModel
 
     /// <summary>A play triangle, for starting a kept session. Segoe MDL2 Assets.</summary>
     public const string StartGlyph = "\uE768";
+
+    /// <summary>A check mark, for the checkbox that starts picadence with Windows.</summary>
+    public const string CheckGlyph = "\uE73E";
     /// <summary>How many rows one screen shows. The rest are a scroll away.</summary>
     public const int VisibleRows = 5;
 
@@ -356,20 +372,20 @@ public static class PanelModel
         }
 
         y += RowSpacing;
+
+        // One row, two controls: the checkbox on the left edge, Quit on the right.
         var actions = new List<PanelActionRow>(2)
         {
-            Action(
+            Checkbox(
                 PanelAction.Autostart,
-                new DipRect(Padding, y, inner, ActionHeight),
+                new DipRect(Padding, y, AutostartWidth, ActionHeight),
                 "Start with Windows",
-                autostartOn ? "on" : "off"),
+                autostartOn),
+            Label(
+                PanelAction.Quit,
+                new DipRect(Padding + inner - QuitWidth, y, QuitWidth, ActionHeight),
+                "Quit"),
         };
-        y += ActionHeight + ActionSpacing;
-        actions.Add(Action(
-            PanelAction.Quit,
-            new DipRect(Padding, y, inner, ActionHeight),
-            "Quit",
-            string.Empty));
         y += ActionHeight + Padding;
 
         var counts = sessions
@@ -528,24 +544,40 @@ public static class PanelModel
     }
 
     /// <summary>
-    /// One control, laid out the way a Fluent button is: the fill sits inside the
-    /// row, and the label and value sit inside the fill so neither touches its edge.
+    /// The checkbox: a box at the inset, and the label right of it, both inside the
+    /// control so a hover fill that is drawn first sits under neither of them.
     /// </summary>
-    private static PanelActionRow Action(PanelAction action, DipRect bounds, string label, string value)
+    private static PanelActionRow Checkbox(PanelAction action, DipRect bounds, string label, bool on)
     {
-        var contentLeft = bounds.X + ActionInset + ActionPadding;
-        var contentRight = bounds.X + bounds.Width - ActionInset - ActionPadding;
-        var labelWidth = Math.Max(0, contentRight - ActionValueWidth - contentLeft);
-        var valueLeft = Math.Max(contentLeft, contentRight - ActionValueWidth);
+        var left = bounds.X + ActionInset + ActionPadding;
+        var box = new DipRect(left, bounds.Y + ((bounds.Height - CheckSize) / 2), CheckSize, CheckSize);
 
         return new PanelActionRow(
             action,
             bounds,
-            new DipRect(contentLeft, bounds.Y, labelWidth, bounds.Height),
-            new DipRect(valueLeft, bounds.Y, Math.Max(0, contentRight - valueLeft), bounds.Height),
+            box,
+            new DipRect(
+                box.X + CheckSize + CheckGap,
+                bounds.Y,
+                Math.Max(0, bounds.X + bounds.Width - ActionInset - ActionPadding - box.X - CheckSize - CheckGap),
+                bounds.Height),
             label,
-            value);
+            on);
     }
+
+    /// <summary>A control that is only words, laid out inside its own edges.</summary>
+    private static PanelActionRow Label(PanelAction action, DipRect bounds, string label) =>
+        new(
+            action,
+            bounds,
+            default,
+            new DipRect(
+                bounds.X + ActionInset + ActionPadding,
+                bounds.Y,
+                Math.Max(0, bounds.Width - (2 * (ActionInset + ActionPadding))),
+                bounds.Height),
+            label,
+            Checked: false);
 
     private static string Summary(IReadOnlyDictionary<AgentState, int> counts, int total)
     {

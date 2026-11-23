@@ -5,17 +5,27 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
-- The X that stops picadence moved into the panel's header, and the row of controls
-  under the list is gone, so the panel is a row shorter.
-- Autostart is removed. Windows already has a Startup folder (`shell:startup`), and
-  a shortcut in it does the same thing without a registry value to keep in step. A
-  `Run` value that an older version left behind keeps working until you delete it.
+## picadence-v0.3.0
 
-
-- A session that needs you, finishes, or fails now asks Windows Terminal for a
+- A session that needs you, finishes, or fails asks Windows Terminal for a
   notification, and clicking it brings that terminal forward. Terminal 1.26 shows
   it once the profile allows it (`compatibility.allowOSC777`); older versions
-  ignore it. `PICADENCE_NOTIFY=0` turns the request off.
+  ignore the request. `PICADENCE_NOTIFY=0` turns it off.
+- The panel says when something it needs is missing: pi itself, the pi extension
+  that does the reporting, or Windows Terminal. For the extension it names the
+  command that installs it, and it stays quiet once a session has reported.
+- The pi half installs from this repository as a pi package:
+  `pi install git:github.com/ypyl/picadence`.
+- The X that stops picadence moved into the panel's header, and the row of controls
+  under the list is gone, so the panel is a row shorter. Autostart is removed;
+  Windows already has a Startup folder (`shell:startup`), and a shortcut in it does
+  the same thing without a registry value to keep in step.
+- The keep control is a star, outline or solid, and the age column is as wide as the
+  ages it holds rather than a fixed width with a hole in it.
+- A session whose process ended stops being shown even when Windows has given its
+  process id to another program. The state file now records when the writing process
+  started, and the tray compares that with the kernel's answer.
+- winget carries the tray as `Ypyl.Picadence`.
 
 ## picadence-v0.2.0
 

@@ -168,35 +168,56 @@ public class PanelModelTests
         });
     }
 
-    [Fact]
-    public void A_control_keeps_its_content_inside_its_edges()
+    [Fact(DisplayName = "the two controls share one row, the checkbox left and Quit right")]
+    public void The_two_controls_share_one_row_the_checkbox_left_and_quit_right()
     {
         var layout = PanelModel.Build([Session(1, AgentState.Working)], Now, true);
 
+        var checkbox = layout.Actions.Single(action => action.Action == PanelAction.Autostart);
+        var quit = layout.Actions.Single(action => action.Action == PanelAction.Quit);
+
+        Assert.Equal(2, layout.Actions.Count);
+        Assert.Equal(checkbox.Bounds.Y, quit.Bounds.Y);
+        Assert.Equal(checkbox.Bounds.Height, quit.Bounds.Height);
+        Assert.True(checkbox.Bounds.X < quit.Bounds.X, "the checkbox is the left one");
+        Assert.True(
+            quit.Bounds.X + quit.Bounds.Width > checkbox.Bounds.X + checkbox.Bounds.Width,
+            "Quit sits to its right");
+        Assert.Equal(PanelModel.Padding, checkbox.Bounds.X);
+        Assert.True(
+            Math.Abs(quit.Bounds.X + quit.Bounds.Width - (PanelModel.Width - PanelModel.Padding)) < 0.001,
+            "Quit ends at the panel's right inset");
+        Assert.False(checkbox.Bounds.Contains(quit.Bounds.X, quit.Bounds.Y), "and they do not overlap");
+
+        // Neither control hangs off the panel, and the label stays inside.
         Assert.All(layout.Actions, action =>
         {
-            var labelInset = action.LabelBounds.X - action.Bounds.X;
-            var valueInset = (action.Bounds.X + action.Bounds.Width) - (action.ValueBounds.X + action.ValueBounds.Width);
-            var centreInset = action.Bounds.Y + (action.Bounds.Height / 2);
-
-            Assert.True(labelInset >= 12, $"{action.Action}: the label is {labelInset} DIPs from the edge");
-            Assert.True(valueInset >= 12, $"{action.Action}: the value is {valueInset} DIPs from the edge");
+            Assert.InRange(action.LabelBounds.X, action.Bounds.X, action.Bounds.X + action.Bounds.Width);
+            Assert.True(
+                action.LabelBounds.X + action.LabelBounds.Width <= action.Bounds.X + action.Bounds.Width,
+                $"{action.Action}: the label hangs past its control");
             Assert.Equal(PanelModel.ActionHeight, action.Bounds.Height);
-            Assert.InRange(centreInset, action.Bounds.Y, action.Bounds.Y + action.Bounds.Height);
         });
     }
 
     [Fact]
-    public void A_control_labels_its_value_or_leaves_it_empty()
+    public void The_checkbox_shows_whether_starting_with_windows_is_on()
     {
         var on = PanelModel.Build([], Now, true).Actions.Single(action => action.Action == PanelAction.Autostart);
         var off = PanelModel.Build([], Now, false).Actions.Single(action => action.Action == PanelAction.Autostart);
         var quit = PanelModel.Build([], Now, false).Actions.Single(action => action.Action == PanelAction.Quit);
 
-        Assert.Equal("on", on.Value);
-        Assert.Equal("off", off.Value);
+        Assert.True(on.Checked);
+        Assert.False(off.Checked);
+        Assert.Equal("Start with Windows", on.Label);
+        Assert.Equal(PanelModel.CheckSize, on.BoxBounds.Width);
+        Assert.True(on.BoxBounds.Height > 0, "the box has a height");
+        Assert.Equal(on.BoxBounds.Y + (on.BoxBounds.Height / 2), on.Bounds.Y + (on.Bounds.Height / 2));
+
+        // Quit is words only: no box, and nothing checked.
         Assert.Equal("Quit", quit.Label);
-        Assert.Empty(quit.Value);
+        Assert.Equal(default, quit.BoxBounds);
+        Assert.False(quit.Checked);
     }
 
     [Fact]

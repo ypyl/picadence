@@ -13,6 +13,7 @@ import picadence, {
   pollPings,
   notifyBody,
   notifySequence,
+  processStartedAt,
   tabProgressSequence,
   tabTitle,
   wantsNotification,
@@ -486,4 +487,14 @@ test("the words cannot break the sequence", () => {
 
   // A name that is nothing but separators still says something.
   assert.equal(notifySequence("done", ";;\u0007"), "\u001b]777;notify;picadence;a session finished\u0007");
+});
+
+test("the state file says when its process started", () => {
+  // Derived from uptime, so it is the same value on every write from this process,
+  // and close enough to the kernel's own answer for the tray to match them.
+  const now = Date.parse("2026-11-23T09:15:20.000Z");
+  assert.equal(processStartedAt(now, 0), "2026-11-23T09:15:20.000Z");
+  assert.equal(processStartedAt(now, 90.5), "2026-11-23T09:13:49.500Z");
+  assert.equal(processStartedAt(now, NaN), "2026-11-23T09:15:20.000Z");
+  assert.equal(processStartedAt(now, undefined), "2026-11-23T09:15:20.000Z");
 });

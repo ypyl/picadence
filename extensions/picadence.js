@@ -218,6 +218,16 @@ export function notifySequence(state, label) {
   return `\u001b]777;notify;picadence;${body}\u0007`;
 }
 
+/**
+ * When this process started, as ISO text. `uptime` is seconds since the process
+ * began, which is the only clock a session has about itself, and it is what lets the
+ * tray tell this process from a later one that Windows gave the same pid.
+ */
+export function processStartedAt(now, uptimeSeconds) {
+  const uptime = Number.isFinite(uptimeSeconds) ? uptimeSeconds : 0;
+  return new Date(now - uptime * 1000).toISOString();
+}
+
 export function initialState() {
   return { state: "idle", detail: undefined, runActive: false, outcome: undefined };
 }
@@ -380,6 +390,7 @@ export default function picadence(pi) {
         ...facts,
         state: current.state,
         detail: current.detail,
+        startedAt: processStartedAt(Date.now(), process.uptime()),
         updatedAt: new Date().toISOString(),
       });
       showInTab(ctx, facts);

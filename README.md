@@ -23,11 +23,19 @@ failed, with the age of each change and the two controls](docs/panel.png)
 | grey | nothing needs you |
 
 One icon covers every session, and the most urgent state wins: red over amber,
-amber over green. A click on the icon opens a small dark panel with a summary, one
-row per session (folder, state, what it is doing, how long ago it changed, and the
-state's colour), and the X that stops picadence. It closes when it loses focus or
-on Escape, and it keeps up while it is open. A row does nothing: picadence never
-sends input to a session.
+amber over green. A click on the icon opens a small dark panel with a summary and
+one row per session: folder, state in words, the tool it is running, how long ago
+it changed, the colour of that state, and two small controls.
+
+- The **pin** keeps a session, so its row survives the tab.
+- The **play** control appears on a kept row that is not running, and opens it
+  again.
+
+Five rows fit at a time and the wheel reaches the rest, with a line underneath
+saying where you are. The footer has one row: a checkbox that starts picadence
+with Windows, and an X that stops it. The panel closes when it loses focus or on
+Escape, and it keeps up while it is open. A row itself does nothing: picadence
+never sends input to a session.
 
 ## What the tab says
 
@@ -121,6 +129,19 @@ This is the one thing picadence starts. It opens `wt.exe` on one command, which
 runs pi on that session's conversation, and nothing else, ever. On Windows pi is a
 `.cmd` shim rather than a program, so the tab hands it to `cmd.exe` the way your
 own shell does.
+
+## When something is missing
+
+picadence needs two things on the machine, and it says when one is absent rather
+than leaving you to work it out:
+
+| missing | what the panel says | what still works |
+|---|---|---|
+| pi | `pi is not installed` instead of an empty list | the tray, the panel, Autostart |
+| Windows Terminal | one line under the sessions | everything except starting a session |
+
+Both are checked on every refresh, so installing one while picadence is running is
+enough; there is no restart and no dialog.
 
 ## Install the pi side
 

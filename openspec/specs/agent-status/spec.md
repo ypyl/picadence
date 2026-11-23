@@ -81,9 +81,9 @@ reaches the next run.
 
 The panel SHALL list every live session, the most recently changed first, each
 row naming the session's folder, its state in words, and how long ago it changed,
-with a colour that repeats the state. It SHALL end with its controls: a way to
-start picadence with Windows, and a way to quit. A left click on a session row
-SHALL take no action, except on the row's own controls.
+with a colour that repeats the state. Its header SHALL carry one control, the one
+that stops picadence. A left click on a session row SHALL take no action, except
+on the row's own controls.
 
 Each row SHALL carry one small control that keeps that session or stops keeping
 it, and that control SHALL show which of the two it is by its shape, not only by
@@ -95,7 +95,8 @@ when the restart would not work.
 
 - **WHEN** two live sessions changed at different times
 - **THEN** the panel shows both, newest first, each with its folder, its state,
-  its age, and the colour of that state, followed by the two controls
+  its age, and the colour of that state, and the header carries the control that
+  stops picadence
 
 #### Scenario: a session row takes no action
 
@@ -189,37 +190,6 @@ Every state SHALL be named in words as well as shown in colour.
 
 - **WHEN** a session is in any state the panel can show
 - **THEN** the row names that state in words, not only by its dot
-
-### Requirement: Starting with Windows is a control, not a config file
-
-The panel SHALL offer a control that turns starting with Windows on and off, and
-SHALL show whether it is currently on. Turning it on SHALL make Windows start
-picadence when the user signs in; turning it off SHALL stop that. The control
-SHALL need no elevation and SHALL affect only the current user.
-
-#### Scenario: the autostart control turns it on and off
-
-- **WHEN** the user clicks the start-with-Windows control while it is off, and
-  then clicks it again
-- **THEN** it reads on and Windows is set to start picadence, and then it reads
-  off and that setting is gone
-
-### Requirement: The registration follows the app
-
-When starting with Windows is on, the registration SHALL name the executable
-that is running, and a later start from another path SHALL correct the
-registration rather than leave the old path behind.
-
-#### Scenario: the registered path follows the app
-
-- **WHEN** the app is set to start with Windows and later runs from a different
-  executable path
-- **THEN** the registration names the new path, with one entry and no leftover
-
-#### Scenario: a path with spaces still starts
-
-- **WHEN** the executable path contains a space
-- **THEN** the registration quotes it so Windows starts the same file
 
 ### Requirement: The tray starts only what the user asked for
 

@@ -58,7 +58,7 @@ public class AgentStatusTests
             Session(3, AgentState.Blocked),
         ];
 
-        var summary = PanelModel.Build(sessions, Now, false).Summary;
+        var summary = PanelModel.Build(sessions, Now).Summary;
 
         Assert.Contains("1 waiting", summary, StringComparison.Ordinal);
         Assert.Contains("2 working", summary, StringComparison.Ordinal);

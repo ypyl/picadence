@@ -23,8 +23,7 @@ public class PanelModelTests
                 Session(1, AgentState.Working, secondsAgo: 120, folder: "older"),
                 Session(2, AgentState.Blocked, secondsAgo: 5, folder: "newer", detail: "Confirm"),
             ],
-            Now,
-            false);
+            Now);
 
         Assert.Equal(2, layout.Rows.Count);
         Assert.Equal("newer", layout.Rows[0].Folder);
@@ -43,7 +42,7 @@ public class PanelModelTests
     {
         foreach (var state in Enum.GetValues<AgentState>())
         {
-            var layout = PanelModel.Build([Session(1, state)], Now, false);
+            var layout = PanelModel.Build([Session(1, state)], Now);
             Assert.Equal(state.Describe(), layout.Rows[0].StateWord);
             Assert.Equal(PanelTheme.State(state), PanelTheme.State(layout.Rows[0].State));
         }
@@ -52,7 +51,7 @@ public class PanelModelTests
     [Fact(DisplayName = "a session row takes no action")]
     public void A_session_row_takes_no_action()
     {
-        var layout = PanelModel.Build([Session(1, AgentState.Working)], Now, false);
+        var layout = PanelModel.Build([Session(1, AgentState.Working)], Now);
         var row = layout.Rows[0].Bounds;
 
         Assert.Equal(PanelHit.Row, layout.HitTest(row.X + 4, row.Y + 4));
@@ -65,7 +64,7 @@ public class PanelModelTests
     [Fact(DisplayName = "an empty panel says nothing is running")]
     public void An_empty_panel_says_nothing_is_running()
     {
-        var layout = PanelModel.Build([], Now, false);
+        var layout = PanelModel.Build([], Now);
 
         Assert.Empty(layout.Rows);
         Assert.Equal("No sessions are running", layout.EmptyText);
@@ -77,8 +76,8 @@ public class PanelModelTests
     [Fact(DisplayName = "the panel updates while it stays open")]
     public void The_panel_updates_while_it_stays_open()
     {
-        var before = PanelModel.Build([Session(1, AgentState.Working)], Now, false);
-        var after = PanelModel.Build([Session(1, AgentState.Blocked)], Now.AddSeconds(3), false);
+        var before = PanelModel.Build([Session(1, AgentState.Working)], Now);
+        var after = PanelModel.Build([Session(1, AgentState.Blocked)], Now.AddSeconds(3));
 
         Assert.Equal("working", before.Rows[0].StateWord);
         Assert.Equal("waiting", after.Rows[0].StateWord);
@@ -92,7 +91,7 @@ public class PanelModelTests
             .Select(pid => Session(pid, AgentState.Working, secondsAgo: pid))
             .ToList();
 
-        var layout = PanelModel.Build(sessions, Now, false);
+        var layout = PanelModel.Build(sessions, Now);
 
         Assert.Equal(PanelModel.VisibleRows, layout.Rows.Count);
         Assert.Equal(12, layout.TotalRows);
@@ -100,7 +99,7 @@ public class PanelModelTests
         Assert.Equal("1\u20135 of 12  \u00b7  scroll", layout.ScrollText);
 
         // And nothing to say when everything fits.
-        var small = PanelModel.Build(sessions.Take(5).ToList(), Now, false);
+        var small = PanelModel.Build(sessions.Take(5).ToList(), Now);
         Assert.Equal(5, small.Rows.Count);
         Assert.Null(small.ScrollText);
     }
@@ -113,7 +112,7 @@ public class PanelModelTests
             .ToList();
 
         // Newest first, so the last row of the list is the oldest session.
-        var end = PanelModel.Build(sessions, Now, false, scroll: 99);
+        var end = PanelModel.Build(sessions, Now, scroll: 99);
 
         Assert.Equal(7, end.FirstRow);
         Assert.Equal(PanelModel.VisibleRows, end.Rows.Count);
@@ -139,11 +138,11 @@ public class PanelModelTests
                 new RestartPlan(RestartRefusal.None, new Launch("wt.exe", "wt.exe", @"C:\Users\me\docs-site"), string.Empty)),
         };
 
-        var top = PanelModel.Build(sessions, Now, false, kept: kept);
+        var top = PanelModel.Build(sessions, Now, kept: kept);
         Assert.Equal(PanelModel.VisibleRows, top.Rows.Count);
         Assert.DoesNotContain(top.Rows, row => row.Kind == PanelRowKind.Kept);
 
-        var scrolled = PanelModel.Build(sessions, Now, false, kept: kept, scroll: 5);
+        var scrolled = PanelModel.Build(sessions, Now, kept: kept, scroll: 5);
         Assert.Equal(PanelRowKind.Kept, scrolled.Rows[^1].Kind);
         Assert.Equal(5, scrolled.Rows.Count);
     }
@@ -157,8 +156,7 @@ public class PanelModelTests
                 Session(2, AgentState.Blocked, secondsAgo: 90, detail: "Confirm"),
                 Session(3, AgentState.Error, secondsAgo: 7200),
             ],
-            Now,
-            false);
+            Now);
 
         Assert.All(layout.Rows, row =>
         {
@@ -168,81 +166,46 @@ public class PanelModelTests
         });
     }
 
-    [Fact(DisplayName = "the two controls share one row, the checkbox left and Quit right")]
-    public void The_two_controls_share_one_row_the_checkbox_left_and_quit_right()
+    [Fact(DisplayName = "the X sits in the header, at its trailing edge")]
+    public void The_x_sits_in_the_header_at_its_trailing_edge()
     {
-        var layout = PanelModel.Build([Session(1, AgentState.Working)], Now, true);
+        var layout = PanelModel.Build([Session(1, AgentState.Working)], Now);
 
-        var checkbox = layout.Actions.Single(action => action.Action == PanelAction.Autostart);
-        var quit = layout.Actions.Single(action => action.Action == PanelAction.Quit);
+        var quit = Assert.Single(layout.Actions);
+        Assert.Equal(PanelAction.Quit, quit.Action);
+        Assert.Equal(PanelModel.QuitGlyph, quit.Glyph);
 
-        Assert.Equal(2, layout.Actions.Count);
-        Assert.Equal(checkbox.Bounds.Y, quit.Bounds.Y);
-        Assert.Equal(checkbox.Bounds.Height, quit.Bounds.Height);
-        Assert.True(checkbox.Bounds.X < quit.Bounds.X, "the checkbox is the left one");
-        Assert.True(
-            quit.Bounds.X + quit.Bounds.Width > checkbox.Bounds.X + checkbox.Bounds.Width,
-            "Quit sits to its right");
-        Assert.Equal(PanelModel.Padding, checkbox.Bounds.X);
+        // Inside the header, against the panel's right inset, with room to be hit.
+        var header = layout.HeaderBounds;
+        Assert.InRange(quit.Bounds.X, header.X, header.X + header.Width);
+        Assert.InRange(quit.Bounds.Y, header.Y, header.Y + header.Height);
+        Assert.True(quit.Bounds.Y + quit.Bounds.Height <= header.Y + header.Height, "inside the header");
         Assert.True(
             Math.Abs(quit.Bounds.X + quit.Bounds.Width - (PanelModel.Width - PanelModel.Padding)) < 0.001,
-            "Quit ends at the panel's right inset");
-        Assert.False(checkbox.Bounds.Contains(quit.Bounds.X, quit.Bounds.Y), "and they do not overlap");
+            "against the right inset");
+        Assert.Equal(PanelModel.HeaderControl, quit.Bounds.Width);
+        Assert.Equal(PanelHit.Quit, layout.HitTest(quit.Bounds.X + 4, quit.Bounds.Y + 4));
 
-        // Neither control hangs off the panel, and the content stays inside.
-        Assert.All(layout.Actions, action =>
-        {
-            Assert.InRange(action.LabelBounds.X, action.Bounds.X, action.Bounds.X + action.Bounds.Width);
-            Assert.True(
-                action.LabelBounds.X + action.LabelBounds.Width <= action.Bounds.X + action.Bounds.Width,
-                $"{action.Action}: the content hangs past its control");
-            Assert.Equal(PanelModel.ActionHeight, action.Bounds.Height);
-        });
+        // The summary stops before it rather than under it.
+        Assert.True(layout.SummaryBounds.X + layout.SummaryBounds.Width <= quit.Bounds.X, "the summary makes room");
+        Assert.Equal(quit.Bounds.Y + (quit.Bounds.Height / 2), layout.SummaryBounds.Y + (layout.SummaryBounds.Height / 2));
     }
 
-    [Fact(DisplayName = "a control is as wide as what it says")]
-    public void A_control_is_as_wide_as_what_it_says()
+    [Fact(DisplayName = "the panel ends after its list, with no footer row")]
+    public void The_panel_ends_after_its_list_with_no_footer_row()
     {
-        // A wider measurement makes a wider checkbox, and the X stays one glyph wide.
-        var narrow = PanelModel.Build([], Now, false, measure: _ => 40);
-        var wide = PanelModel.Build([], Now, false, measure: _ => 120);
+        var layout = PanelModel.Build([Session(1, AgentState.Working)], Now);
 
-        var narrowBox = narrow.Actions.Single(action => action.Action == PanelAction.Autostart);
-        var wideBox = wide.Actions.Single(action => action.Action == PanelAction.Autostart);
-
-        Assert.Equal(80, wideBox.Bounds.Width - narrowBox.Bounds.Width);
+        Assert.Single(layout.Actions);
         Assert.True(
-            wideBox.LabelBounds.Width - narrowBox.LabelBounds.Width == 80,
-            "the label gets the room, not the inset");
+            Math.Abs(
+                layout.Rows[^1].Bounds.Y + layout.Rows[^1].Bounds.Height + PanelModel.Padding - layout.Height) < 0.001,
+            "nothing sits under the list");
 
-        var quit = wide.Actions.Single(action => action.Action == PanelAction.Quit);
-        Assert.Equal(
-            (2 * (PanelModel.ActionInset + PanelModel.ActionPadding)) + PanelModel.IconSize,
-            quit.Bounds.Width);
-
-        // And the panel does not widen for either of them.
-        Assert.Equal(PanelModel.Width, wide.Width);
-    }
-
-    [Fact]
-    public void The_checkbox_shows_whether_starting_with_windows_is_on()
-    {
-        var on = PanelModel.Build([], Now, true).Actions.Single(action => action.Action == PanelAction.Autostart);
-        var off = PanelModel.Build([], Now, false).Actions.Single(action => action.Action == PanelAction.Autostart);
-        var quit = PanelModel.Build([], Now, false).Actions.Single(action => action.Action == PanelAction.Quit);
-
-        Assert.True(on.Checked);
-        Assert.False(off.Checked);
-        Assert.Equal("Autostart", on.Label);
-        Assert.Equal(PanelModel.CheckSize, on.BoxBounds.Width);
-        Assert.True(on.BoxBounds.Height > 0, "the box has a height");
-        Assert.Equal(on.BoxBounds.Y + (on.BoxBounds.Height / 2), on.Bounds.Y + (on.Bounds.Height / 2));
-
-        // Quit is one glyph: no words, no box, nothing checked.
-        Assert.Equal(string.Empty, quit.Label);
-        Assert.Equal(PanelModel.QuitGlyph, quit.Glyph);
-        Assert.Equal(default, quit.BoxBounds);
-        Assert.False(quit.Checked);
+        // And nothing in the panel offers to start it with Windows any more.
+        Assert.DoesNotContain(
+            Enum.GetNames<PanelAction>(),
+            name => string.Equals(name, "Autostart", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -254,18 +217,17 @@ public class PanelModelTests
                 Session(2, AgentState.Working),
                 Session(3, AgentState.Blocked),
             ],
-            Now,
-            false);
+            Now);
 
         Assert.Equal("1 waiting, 2 working", layout.Summary);
-        Assert.Equal("nothing running", PanelModel.Build([], Now, false).Summary);
+        Assert.Equal("nothing running", PanelModel.Build([], Now).Summary);
     }
 
     [Fact]
     public void Rows_do_not_overlap_and_the_panel_grows_with_them()
     {
-        var one = PanelModel.Build([Session(1, AgentState.Working)], Now, false);
-        var two = PanelModel.Build([Session(1, AgentState.Working), Session(2, AgentState.Idle, secondsAgo: 1)], Now, false);
+        var one = PanelModel.Build([Session(1, AgentState.Working)], Now);
+        var two = PanelModel.Build([Session(1, AgentState.Working), Session(2, AgentState.Idle, secondsAgo: 1)], Now);
 
         Assert.True(two.Height > one.Height);
         for (var i = 1; i < two.Rows.Count; i++)
@@ -273,7 +235,7 @@ public class PanelModelTests
             Assert.True(two.Rows[i].Bounds.Y >= two.Rows[i - 1].Bounds.Y + two.Rows[i - 1].Bounds.Height);
         }
 
-        Assert.True(two.Actions[0].Bounds.Y >= two.Rows[^1].Bounds.Y + two.Rows[^1].Bounds.Height);
+        Assert.True(two.Actions[0].Bounds.Y < two.Rows[0].Bounds.Y, "the X sits above the list, in the header");
         Assert.True(
             two.Rows[0].Bounds.Y >= two.HeaderBounds.Y + two.HeaderBounds.Height,
             "the first row starts below the header");
@@ -361,14 +323,11 @@ public class PanelHoverTests
     [Fact]
     public void The_quit_button_offers_a_hand_and_a_row_does_not()
     {
-        var layout = PanelModel.Build([Session(1)], Now, false);
+        var layout = PanelModel.Build([Session(1)], Now);
         var quit = layout.Actions.Single(action => action.Action == PanelAction.Quit).Bounds;
-        var autostart = layout.Actions.Single(action => action.Action == PanelAction.Autostart).Bounds;
         var row = layout.Rows[0].Bounds;
 
         Assert.Equal(PanelHit.Quit, layout.HitTest(quit.X + 4, quit.Y + 4));
-        Assert.Equal(PanelHit.Autostart, layout.HitTest(autostart.X + 4, autostart.Y + 4));
-        Assert.Equal(PanelPointer.Hand, PanelCursor.For(PanelHit.Autostart));
         Assert.Equal(PanelPointer.Hand, PanelCursor.For(PanelHit.Quit));
         Assert.Equal(PanelPointer.Arrow, PanelCursor.For(layout.HitTest(row.X + 4, row.Y + 4)));
         Assert.Equal(PanelPointer.Arrow, PanelCursor.For(PanelHit.None));
@@ -441,12 +400,12 @@ public class PanelFlyoutTests
         var session = Session(1);
         var schedule = Armed(1, Cadence.Hourly, Now.AddMinutes(24));
 
-        var layout = PanelModel.Build([session], Now, false, Cadences(schedule));
+        var layout = PanelModel.Build([session], Now, Cadences(schedule));
         Assert.Equal("every hour, next in 24m", Assert.Single(layout.Rows).Schedule);
         Assert.Null(layout.Flyout);
 
         // A right click on the row opens the list, with that cadence chosen.
-        var flyoutLayout = PanelModel.Build([session], Now, false, Cadences(schedule), flyoutFor: session.Reference);
+        var flyoutLayout = PanelModel.Build([session], Now, Cadences(schedule), flyoutFor: session.Reference);
         var flyout = Assert.IsType<PanelFlyout>(flyoutLayout.Flyout);
 
         // The cadences and nothing else: keeping moved onto the row's pin.
@@ -462,7 +421,7 @@ public class PanelFlyoutTests
     [Fact(DisplayName = "the cadence list says what it is")]
     public void The_cadence_list_says_what_it_is()
     {
-        var layout = PanelModel.Build([Session(1)], Now, false, flyoutFor: Session(1).Reference);
+        var layout = PanelModel.Build([Session(1)], Now, flyoutFor: Session(1).Reference);
         var flyout = Assert.IsType<PanelFlyout>(layout.Flyout);
 
         Assert.Equal("Repeat ping", flyout.Header);
@@ -485,10 +444,10 @@ public class PanelFlyoutTests
     [Fact]
     public void An_unarmed_row_says_nothing_about_a_cadence()
     {
-        var layout = PanelModel.Build([Session(1)], Now, false);
+        var layout = PanelModel.Build([Session(1)], Now);
 
         Assert.Null(Assert.Single(layout.Rows).Schedule);
-        var flyout = Assert.IsType<PanelFlyout>(PanelModel.Build([Session(1)], Now, false, Cadences(), flyoutFor: Session(1).Reference).Flyout);
+        var flyout = Assert.IsType<PanelFlyout>(PanelModel.Build([Session(1)], Now, Cadences(), flyoutFor: Session(1).Reference).Flyout);
         Assert.Equal("every 15 minutes", flyout.Items[0].Label);
         Assert.Equal(Cadence.Off, Assert.Single(flyout.Items, item => item.Selected).Cadence);
     }
@@ -510,7 +469,7 @@ public class PanelFlyoutTests
 
         foreach (var session in sessions)
         {
-            var layout = PanelModel.Build(sessions, Now, false, flyoutFor: session.Reference);
+            var layout = PanelModel.Build(sessions, Now, flyoutFor: session.Reference);
             if (layout.Flyout is null)
             {
                 // Past the fifth row the list is a scroll away, and a row that is not
@@ -537,7 +496,7 @@ public class PanelFlyoutTests
     [Fact]
     public void The_flyout_answers_before_the_row_under_it()
     {
-        var layout = PanelModel.Build([Session(1), Session(2, secondsAgo: 1)], Now, false, flyoutFor: new SessionRef(1, "session-1"));
+        var layout = PanelModel.Build([Session(1), Session(2, secondsAgo: 1)], Now, flyoutFor: new SessionRef(1, "session-1"));
         var flyout = Assert.IsType<PanelFlyout>(layout.Flyout);
         var item = flyout.Items[1];
 
@@ -569,7 +528,7 @@ public class PanelKeptTests
     [Fact(DisplayName = "a kept session stays after it ends")]
     public void A_kept_session_stays_after_it_ends()
     {
-        var layout = PanelModel.Build([], Now, false, kept: [Kept(Pin())]);
+        var layout = PanelModel.Build([], Now, kept: [Kept(Pin())]);
 
         var row = Assert.Single(layout.Rows);
         Assert.Equal(PanelRowKind.Kept, row.Kind);
@@ -582,7 +541,7 @@ public class PanelKeptTests
         Assert.Equal("nothing running", layout.Summary);
 
         // Kept rows come after the ones that are running.
-        var withLive = PanelModel.Build([Live(9)], Now, false, kept: [Kept(Pin())]);
+        var withLive = PanelModel.Build([Live(9)], Now, kept: [Kept(Pin())]);
         Assert.Equal(PanelRowKind.Live, withLive.Rows[0].Kind);
         Assert.Equal(PanelRowKind.Kept, withLive.Rows[1].Kind);
     }
@@ -591,7 +550,7 @@ public class PanelKeptTests
     public void A_kept_session_that_is_running_is_one_row_not_two()
     {
         var pin = Pin("live-1");
-        var layout = PanelModel.Build([Live(9)], Now, false, kept: [Kept(pin)]);
+        var layout = PanelModel.Build([Live(9)], Now, kept: [Kept(pin)]);
 
         var row = Assert.Single(layout.Rows);
         Assert.Equal(PanelRowKind.Live, row.Kind);
@@ -603,7 +562,7 @@ public class PanelKeptTests
     {
         var pin = Pin();
         var layout = PanelModel.Build(
-            [], Now, false, flyoutFor: new SessionRef(0, KeptId),
+            [], Now, flyoutFor: new SessionRef(0, KeptId),
             kept: [Kept(pin, RestartRefusal.NoConversation, "the conversation is gone")]);
 
         var row = Assert.Single(layout.Rows);
@@ -618,7 +577,7 @@ public class PanelKeptTests
     public void A_missing_terminal_is_named()
     {
         var layout = PanelModel.Build(
-            [], Now, false, kept: [Kept(Pin(), RestartRefusal.NoTerminal, "windows terminal is not installed")]);
+            [], Now, kept: [Kept(Pin(), RestartRefusal.NoTerminal, "windows terminal is not installed")]);
 
         Assert.Equal("windows terminal is not installed", Assert.Single(layout.Rows).Detail);
     }
@@ -626,7 +585,7 @@ public class PanelKeptTests
     [Fact(DisplayName = "a kept row has no menu, because its actions are on it")]
     public void A_kept_row_has_no_menu_because_its_actions_are_on_it()
     {
-        var layout = PanelModel.Build([], Now, false, flyoutFor: new SessionRef(0, KeptId), kept: [Kept(Pin())]);
+        var layout = PanelModel.Build([], Now, flyoutFor: new SessionRef(0, KeptId), kept: [Kept(Pin())]);
 
         Assert.Null(layout.Flyout);
         var row = Assert.Single(layout.Rows);
@@ -653,7 +612,7 @@ public class PanelPinTests
     [Fact(DisplayName = "the pin control keeps and unkeeps a session")]
     public void The_pin_control_keeps_and_unkeeps_a_session()
     {
-        var layout = PanelModel.Build([Live(1)], Now, false);
+        var layout = PanelModel.Build([Live(1)], Now);
         var row = Assert.Single(layout.Rows);
 
         Assert.False(row.Keeping);
@@ -665,7 +624,7 @@ public class PanelPinTests
 
         // Kept, and the same click again is the way back.
         // The same session, this time kept: one row, and the pin says so.
-        var kept = PanelModel.Build([Live(1)], Now, false, kept: [Kept("session-1")]);
+        var kept = PanelModel.Build([Live(1)], Now, kept: [Kept("session-1")]);
         Assert.True(Assert.Single(kept.Rows).Keeping);
         Assert.Equal(
             PanelHit.Pin,
@@ -675,7 +634,7 @@ public class PanelPinTests
     [Fact(DisplayName = "the pin sits inside the row and before the age")]
     public void The_pin_sits_inside_the_row_and_before_the_age()
     {
-        var layout = PanelModel.Build([Live(1)], Now, false);
+        var layout = PanelModel.Build([Live(1)], Now);
 
         var row = Assert.Single(layout.Rows);
         Assert.True(row.Bounds.Contains(row.PinBounds.X, row.PinBounds.Y), "inside the row");
@@ -689,7 +648,7 @@ public class PanelPinTests
     [Fact(DisplayName = "a row body is not a control")]
     public void A_row_body_is_not_a_control()
     {
-        var layout = PanelModel.Build([Live(1)], Now, false);
+        var layout = PanelModel.Build([Live(1)], Now);
         var row = Assert.Single(layout.Rows);
 
         Assert.Equal(PanelHit.Row, layout.HitTest(row.Bounds.X + 40, row.Bounds.Y + 10));
@@ -700,7 +659,7 @@ public class PanelPinTests
     [Fact(DisplayName = "the start control restarts a kept session")]
     public void The_start_control_restarts_a_kept_session()
     {
-        var layout = PanelModel.Build([], Now, false, kept: [Kept()]);
+        var layout = PanelModel.Build([], Now, kept: [Kept()]);
         var row = Assert.Single(layout.Rows);
 
         Assert.True(row.StartBounds.Width > 0);
@@ -730,7 +689,6 @@ public class PanelPinTests
         var layout = PanelModel.Build(
             [],
             Now,
-            false,
             kept:
             [
                 new KeptSession(
@@ -764,7 +722,7 @@ public class PanelDependencyTests
     [Fact(DisplayName = "a missing pi is named instead of an empty list")]
     public void A_missing_pi_is_named_instead_of_an_empty_list()
     {
-        var layout = PanelModel.Build([], Now, false, dependencies: new Dependencies(Pi: false, Terminal: true));
+        var layout = PanelModel.Build([], Now, dependencies: new Dependencies(Pi: false, Terminal: true));
 
         Assert.Empty(layout.Rows);
         Assert.Equal("pi is not installed", layout.EmptyText);
@@ -772,7 +730,7 @@ public class PanelDependencyTests
         Assert.Null(layout.Notice);
 
         // And with pi present, a quiet machine says it is quiet.
-        var quiet = PanelModel.Build([], Now, false, dependencies: Dependencies.Present);
+        var quiet = PanelModel.Build([], Now, dependencies: Dependencies.Present);
         Assert.Equal("No sessions are running", quiet.EmptyText);
         Assert.Equal("Start pi to see it here", quiet.EmptyHint);
     }
@@ -783,7 +741,6 @@ public class PanelDependencyTests
         var layout = PanelModel.Build(
             [Session(1)],
             Now,
-            false,
             dependencies: new Dependencies(Pi: true, Terminal: false));
 
         Assert.Single(layout.Rows);
@@ -792,11 +749,11 @@ public class PanelDependencyTests
             layout.Notice);
         Assert.True(layout.NoticeBounds.Y > layout.Rows[^1].Bounds.Y, "below the list");
         Assert.True(
-            layout.NoticeBounds.Y < layout.Actions[0].Bounds.Y,
-            "and above the controls");
+            layout.NoticeBounds.Y < layout.Height,
+            "and above the panel's own edge");
 
         // Both present, and there is nothing to say.
-        var fine = PanelModel.Build([Session(1)], Now, false, dependencies: Dependencies.Present);
+        var fine = PanelModel.Build([Session(1)], Now, dependencies: Dependencies.Present);
         Assert.Null(fine.Notice);
         Assert.Equal(default, fine.NoticeBounds);
     }
@@ -817,7 +774,6 @@ public class PanelDependencyTests
         var layout = PanelModel.Build(
             [],
             Now,
-            false,
             kept: [kept],
             dependencies: new Dependencies(Pi: true, Terminal: false));
 
@@ -826,6 +782,6 @@ public class PanelDependencyTests
         Assert.Equal("windows terminal is not installed", row.Detail);
         Assert.Equal(default, row.StartBounds);
         Assert.NotNull(layout.Notice);
-        Assert.Equal(2, layout.Actions.Count);
+        Assert.Single(layout.Actions);
     }
 }

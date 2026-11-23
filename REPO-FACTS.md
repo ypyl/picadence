@@ -52,11 +52,13 @@ Rules:
   `extensions/*.js` when no manifest is there. Without it, `picadence.test.mjs`
   would load as an extension in every session.
 - winget carries the tray as `Ypyl.Picadence`, `InstallerType: portable`, from the
-  release asset. The identifier is permanent. The first submission is
-  microsoft/winget-pkgs#487538, opened 2026-11-23 with manifests that passed
-  `winget validate` and a local `winget install --manifest`. A release is not on
-  winget until that pull request merges, so a version bump is a second pull request,
-  not a tag. The copies live in `packaging/winget/`.
+  release asset. The identifier is permanent. The submission is
+  microsoft/winget-pkgs#487538, opened 2026-11-23 for 0.2.0 and moved to 0.3.0 on
+  2026-11-24 with the same three files and a new hash, because 0.2.0 was never
+  merged. Both versions passed `winget validate` and a local
+  `winget install --manifest`. A release is not on winget until that pull request
+  merges, so a version bump after it lands is a new pull request, not a tag. The
+  copies live in `packaging/winget/`.
 - A pid is not an identity, and the write time is not either. On 2026-11-23 a
   `folio` row stayed in the panel for eleven hours after its tab closed: the file
   named pid 29240, `OpenProcess(0x1000, false, 29240)` returned a handle, and

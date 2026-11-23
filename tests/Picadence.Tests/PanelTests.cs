@@ -189,15 +189,39 @@ public class PanelModelTests
             "Quit ends at the panel's right inset");
         Assert.False(checkbox.Bounds.Contains(quit.Bounds.X, quit.Bounds.Y), "and they do not overlap");
 
-        // Neither control hangs off the panel, and the label stays inside.
+        // Neither control hangs off the panel, and the content stays inside.
         Assert.All(layout.Actions, action =>
         {
             Assert.InRange(action.LabelBounds.X, action.Bounds.X, action.Bounds.X + action.Bounds.Width);
             Assert.True(
                 action.LabelBounds.X + action.LabelBounds.Width <= action.Bounds.X + action.Bounds.Width,
-                $"{action.Action}: the label hangs past its control");
+                $"{action.Action}: the content hangs past its control");
             Assert.Equal(PanelModel.ActionHeight, action.Bounds.Height);
         });
+    }
+
+    [Fact(DisplayName = "a control is as wide as what it says")]
+    public void A_control_is_as_wide_as_what_it_says()
+    {
+        // A wider measurement makes a wider checkbox, and the X stays one glyph wide.
+        var narrow = PanelModel.Build([], Now, false, measure: _ => 40);
+        var wide = PanelModel.Build([], Now, false, measure: _ => 120);
+
+        var narrowBox = narrow.Actions.Single(action => action.Action == PanelAction.Autostart);
+        var wideBox = wide.Actions.Single(action => action.Action == PanelAction.Autostart);
+
+        Assert.Equal(80, wideBox.Bounds.Width - narrowBox.Bounds.Width);
+        Assert.True(
+            wideBox.LabelBounds.Width - narrowBox.LabelBounds.Width == 80,
+            "the label gets the room, not the inset");
+
+        var quit = wide.Actions.Single(action => action.Action == PanelAction.Quit);
+        Assert.Equal(
+            (2 * (PanelModel.ActionInset + PanelModel.ActionPadding)) + PanelModel.IconSize,
+            quit.Bounds.Width);
+
+        // And the panel does not widen for either of them.
+        Assert.Equal(PanelModel.Width, wide.Width);
     }
 
     [Fact]
@@ -214,8 +238,9 @@ public class PanelModelTests
         Assert.True(on.BoxBounds.Height > 0, "the box has a height");
         Assert.Equal(on.BoxBounds.Y + (on.BoxBounds.Height / 2), on.Bounds.Y + (on.Bounds.Height / 2));
 
-        // Quit is words only: no box, and nothing checked.
-        Assert.Equal("Quit", quit.Label);
+        // Quit is one glyph: no words, no box, nothing checked.
+        Assert.Equal(string.Empty, quit.Label);
+        Assert.Equal(PanelModel.QuitGlyph, quit.Glyph);
         Assert.Equal(default, quit.BoxBounds);
         Assert.False(quit.Checked);
     }

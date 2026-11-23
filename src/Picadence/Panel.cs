@@ -22,6 +22,9 @@ internal static class Panel
 
     /// <summary>Glyphs come from Segoe MDL2 Assets, so they cache apart from the text.</summary>
     private static readonly Dictionary<int, nint> Glyphs = [];
+
+    /// <summary>Measured text widths, so a control is as wide as its words.</summary>
+    private static readonly Dictionary<(int Size, string Text), double> Widths = [];
     private static readonly Dictionary<uint, nint> Brushes = [];
 
     public static bool IsOpen { get; private set; }
@@ -118,7 +121,7 @@ internal static class Panel
         _kept = kept;
         _now = now;
         var next = PanelModel.Build(
-            sessions, now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll, Dependencies.Detect());
+            sessions, now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll, Dependencies.Detect(), Measure);
         var grew = Math.Abs(next.Height - _layout.Height) > 0.5 || Math.Abs(next.Width - _layout.Width) > 0.5;
         _scroll = next.FirstRow;
         _layout = next;
@@ -168,7 +171,7 @@ internal static class Panel
         _scroll = 0;
         _layout = PanelModel.Build(
             sessions, now, _autostartOn, _schedules, kept: _kept, scroll: _scroll,
-            dependencies: Dependencies.Detect());
+            dependencies: Dependencies.Detect(), measure: Measure);
 
         if (_window == 0)
         {
@@ -550,7 +553,7 @@ internal static class Panel
     private static void Rebuild()
     {
         var next = PanelModel.Build(
-            _sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll, Dependencies.Detect());
+            _sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll, Dependencies.Detect(), Measure);
         _scroll = next.FirstRow;
         _layout = next;
 
@@ -628,7 +631,8 @@ internal static class Panel
                 }
 
                 _layout = PanelModel.Build(
-                    _sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll, Dependencies.Detect());
+                    _sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll,
+                    Dependencies.Detect(), Measure);
                 Native.InvalidateRect(_window, 0, false);
                 break;
         }
@@ -817,9 +821,16 @@ internal static class Panel
                 }
             }
 
-            var align = action.Action == PanelAction.Quit ? Native.DT_RIGHT : Native.DT_LEFT;
-            Text(dc, action.Label, action.LabelBounds, 12, Native.FW_NORMAL, PanelTheme.PrimaryText,
-                align | Native.DT_VCENTER | Native.DT_SINGLELINE);
+            if (action.Glyph is { Length: > 0 } glyph)
+            {
+                Text(dc, glyph, action.LabelBounds, 12, Native.FW_NORMAL, PanelTheme.PrimaryText,
+                    Native.DT_CENTER | Native.DT_VCENTER | Native.DT_SINGLELINE, GlyphFont(12));
+            }
+            else
+            {
+                Text(dc, action.Label, action.LabelBounds, 12, Native.FW_NORMAL, PanelTheme.PrimaryText,
+                    Native.DT_LEFT | Native.DT_VCENTER | Native.DT_SINGLELINE);
+            }
         }
 
         if (_layout.Flyout is { } flyout)
@@ -888,6 +899,38 @@ internal static class Panel
         Native.SelectObject(dc, previous);
     }
 
+    /// <summary>
+    /// How wide a string is in the panel's own text font, in device-independent
+    /// pixels. Measured once per string and scale: the panel builds several times a
+    /// second, and the answer cannot change between two ticks at one scale.
+    /// </summary>
+    private static double Measure(string text)
+    {
+        if (Widths.TryGetValue((12, text), out var cached))
+        {
+            return cached;
+        }
+
+        var scale = _scale <= 0 ? 1 : _scale;
+        var dc = Native.CreateCompatibleDC(0);
+        double width;
+        if (dc == 0)
+        {
+            width = text.Length * PanelModel.EstimatePerCharacter;
+        }
+        else
+        {
+            var previous = Native.SelectObject(dc, Font(12, Native.FW_NORMAL));
+            Native.GetTextExtentPoint32W(dc, text, text.Length, out var extent);
+            Native.SelectObject(dc, previous);
+            Native.DeleteDC(dc);
+            width = extent.cx / scale;
+        }
+
+        Widths[(12, text)] = width;
+        return width;
+    }
+
     /// <summary>The icon font every Windows install carries, for the one glyph the panel draws.</summary>
     private static nint GlyphFont(int size)
     {
@@ -950,5 +993,6 @@ internal static class Panel
 
         Fonts.Clear();
         Glyphs.Clear();
+        Widths.Clear();
     }
 }

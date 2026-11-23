@@ -31,6 +31,10 @@ Rules:
 - With the panel open on a 125% display: 16.3 MB working set and 4.6 MB private,
   2026-11-20. The panel is 320x320 DIPs at scale 1.25, so the larger surface is
   the cost, not a leak. Idle with the panel closed stays near the row below.
+- A running tray locks the executable it was started from, so a build fails with
+  `MSB3027 could not copy ... Picadence.exe` while it runs. Stop the process before
+  `dotnet build` or `scripts/verify.sh`; restart it afterwards. Evident every time
+  a change is built with the tray up, 2026-11-23.
 - The capture for the visual check has to come from a DPI-aware process, and so
   does anything that turns a window rect into a screen grab. A DPI-unaware one
   sees 400 physical pixels as 320, so a `CopyFromScreen` of a `GetWindowRect`

@@ -117,7 +117,8 @@ internal static class Panel
         _schedules = new Dictionary<SessionRef, Schedule>(schedules);
         _kept = kept;
         _now = now;
-        var next = PanelModel.Build(sessions, now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll);
+        var next = PanelModel.Build(
+            sessions, now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll, Dependencies.Detect());
         var grew = Math.Abs(next.Height - _layout.Height) > 0.5 || Math.Abs(next.Width - _layout.Width) > 0.5;
         _scroll = next.FirstRow;
         _layout = next;
@@ -165,7 +166,9 @@ internal static class Panel
         _autostartOn = Autostart.Read() is not null;
         _flyoutFor = null;
         _scroll = 0;
-        _layout = PanelModel.Build(sessions, now, _autostartOn, _schedules, kept: _kept, scroll: _scroll);
+        _layout = PanelModel.Build(
+            sessions, now, _autostartOn, _schedules, kept: _kept, scroll: _scroll,
+            dependencies: Dependencies.Detect());
 
         if (_window == 0)
         {
@@ -546,7 +549,8 @@ internal static class Panel
 
     private static void Rebuild()
     {
-        var next = PanelModel.Build(_sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll);
+        var next = PanelModel.Build(
+            _sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll, Dependencies.Detect());
         _scroll = next.FirstRow;
         _layout = next;
 
@@ -623,7 +627,8 @@ internal static class Panel
                     Autostart.Remove();
                 }
 
-                _layout = PanelModel.Build(_sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll);
+                _layout = PanelModel.Build(
+                    _sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll, Dependencies.Detect());
                 Native.InvalidateRect(_window, 0, false);
                 break;
         }
@@ -764,6 +769,12 @@ internal static class Panel
             Text(dc, _layout.EmptyHint ?? string.Empty, new DipRect(empty.X, empty.Y + 24, empty.Width, 16),
                 12, Native.FW_NORMAL, PanelTheme.SecondaryText,
                 Native.DT_LEFT | Native.DT_SINGLELINE);
+        }
+
+        if (_layout.Notice is not null)
+        {
+            Text(dc, _layout.Notice, _layout.NoticeBounds, 12, Native.FW_NORMAL,
+                PanelTheme.SecondaryText, Native.DT_LEFT | Native.DT_SINGLELINE | Native.DT_END_ELLIPSIS);
         }
 
         if (_layout.ScrollText is not null)

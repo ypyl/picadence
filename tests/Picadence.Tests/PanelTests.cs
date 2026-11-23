@@ -703,3 +703,79 @@ public class PanelPinTests
         Assert.NotEqual(PanelModel.KeepGlyph, PanelModel.KeptGlyph);
     }
 }
+
+public class PanelDependencyTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 11, 22, 23, 0, 0, TimeSpan.Zero);
+
+    private static AgentSession Session(int pid) =>
+        new(new SessionRef(pid, $"session-{pid}"), "trayclaw", "trayclaw", null, AgentState.Working, null, Now);
+
+    [Fact(DisplayName = "a missing pi is named instead of an empty list")]
+    public void A_missing_pi_is_named_instead_of_an_empty_list()
+    {
+        var layout = PanelModel.Build([], Now, false, dependencies: new Dependencies(Pi: false, Terminal: true));
+
+        Assert.Empty(layout.Rows);
+        Assert.Equal("pi is not installed", layout.EmptyText);
+        Assert.Contains("pi.dev", layout.EmptyHint, StringComparison.Ordinal);
+        Assert.Null(layout.Notice);
+
+        // And with pi present, a quiet machine says it is quiet.
+        var quiet = PanelModel.Build([], Now, false, dependencies: Dependencies.Present);
+        Assert.Equal("No sessions are running", quiet.EmptyText);
+        Assert.Equal("Start pi to see it here", quiet.EmptyHint);
+    }
+
+    [Fact(DisplayName = "a missing terminal is named beside the sessions")]
+    public void A_missing_terminal_is_named_beside_the_sessions()
+    {
+        var layout = PanelModel.Build(
+            [Session(1)],
+            Now,
+            false,
+            dependencies: new Dependencies(Pi: true, Terminal: false));
+
+        Assert.Single(layout.Rows);
+        Assert.Equal(
+            "windows terminal is not installed \u00b7 a session cannot be started",
+            layout.Notice);
+        Assert.True(layout.NoticeBounds.Y > layout.Rows[^1].Bounds.Y, "below the list");
+        Assert.True(
+            layout.NoticeBounds.Y < layout.Actions[0].Bounds.Y,
+            "and above the controls");
+
+        // Both present, and there is nothing to say.
+        var fine = PanelModel.Build([Session(1)], Now, false, dependencies: Dependencies.Present);
+        Assert.Null(fine.Notice);
+        Assert.Equal(default, fine.NoticeBounds);
+    }
+
+    [Fact(DisplayName = "a missing dependency does not stop a session being kept and started")]
+    public void A_missing_dependency_does_not_stop_the_rest_of_the_panel()
+    {
+        var pin = new Pin(
+            "01a1fe3b-e1c8-71eb-afd8-f796496f0f78",
+            "docs-site",
+            @"C:\Users\me\docs-site",
+            null,
+            Now.AddHours(-1));
+        var kept = new KeptSession(
+            pin,
+            new RestartPlan(RestartRefusal.NoTerminal, null, "windows terminal is not installed"));
+
+        var layout = PanelModel.Build(
+            [],
+            Now,
+            false,
+            kept: [kept],
+            dependencies: new Dependencies(Pi: true, Terminal: false));
+
+        var row = Assert.Single(layout.Rows);
+        Assert.Equal("not running", row.StateWord);
+        Assert.Equal("windows terminal is not installed", row.Detail);
+        Assert.Equal(default, row.StartBounds);
+        Assert.NotNull(layout.Notice);
+        Assert.Equal(2, layout.Actions.Count);
+    }
+}

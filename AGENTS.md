@@ -137,8 +137,9 @@ under **Cutting a release**.
 `CHANGELOG.md` carries an `## Unreleased` heading, that every change folder
 records a valid `x-level`, that L0 sets `skip_specs`, that an L2 or L3 proposal
 links an ADR, that a spec carries no rendering detail, that a durable spec's
-scenario titles appear in tests, that every `shortcut:` marker names an
-upgrade trigger, that a CI or Deploy block is either empty or complete, and that
+scenario titles appear in tests unless an active change removes that requirement,
+that every `shortcut:` marker names an upgrade trigger, that a CI or Deploy block
+is either empty or complete, and that
 a workflow the CI block starts by hand declares `workflow_dispatch`.
 `git config core.hooksPath .githooks` installs the gate once per clone.
 `.githooks/pre-commit` runs the script before every commit, and

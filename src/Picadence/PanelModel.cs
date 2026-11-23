@@ -103,6 +103,11 @@ public sealed class PanelLayout
 
     public int FirstRow { get; init; }
 
+    /// <summary>What is missing, and what that costs.</summary>
+    public string? Notice { get; init; }
+
+    public DipRect NoticeBounds { get; init; }
+
     /// <summary>Where the list is, when there is more of it than fits.</summary>
     public string? ScrollText { get; init; }
 
@@ -219,8 +224,11 @@ public static class PanelModel
         IReadOnlyDictionary<SessionRef, Schedule>? schedules = null,
         SessionRef? flyoutFor = null,
         IReadOnlyList<KeptSession>? kept = null,
-        int scroll = 0)
+        int scroll = 0,
+        Dependencies? dependencies = null)
     {
+        var present = dependencies ?? Dependencies.Present;
+
         var keptById = new Dictionary<string, KeptSession>(StringComparer.Ordinal);
         foreach (var entry in kept ?? [])
         {
@@ -336,6 +344,17 @@ public static class PanelModel
             y += RowHeight;
         }
 
+        var notice = present.Terminal
+            ? null
+            : "windows terminal is not installed \u00b7 a session cannot be started";
+        var noticeBounds = default(DipRect);
+        if (notice is not null)
+        {
+            y += RowSpacing;
+            noticeBounds = new DipRect(Padding, y, inner, 18);
+            y += 18;
+        }
+
         y += RowSpacing;
         var actions = new List<PanelActionRow>(2)
         {
@@ -372,13 +391,17 @@ public static class PanelModel
             HeaderBounds = header,
             Title = "picadence",
             Summary = Summary(counts, sessions.Count),
-            EmptyText = empty ? "No sessions are running" : null,
-            EmptyHint = empty ? "Start pi to see it here" : null,
+            EmptyText = empty ? (present.Pi ? "No sessions are running" : "pi is not installed") : null,
+            EmptyHint = empty
+                ? (present.Pi ? "Start pi to see it here" : "Install it from pi.dev, then start a session")
+                : null,
             EmptyBounds = emptyBounds,
             Rows = rows,
             Actions = actions,
             TotalRows = total,
             FirstRow = first,
+            Notice = notice,
+            NoticeBounds = noticeBounds,
             ScrollText = scrollText,
             ScrollBounds = scrollBounds,
             Flyout = flyout,

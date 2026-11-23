@@ -5,6 +5,11 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- The panel now says when something it needs is missing. Without pi it says so
+  instead of pretending the machine is quiet, and without Windows Terminal it
+  still lists your sessions and tells you they cannot be started.
+
+
 - A cadence can now reach a session you kept and closed. At its due time the tray
   opens that session's tab and the wake-up arrives in it, saying how many windows
   passed while it was closed. A session you did not keep is still never woken.

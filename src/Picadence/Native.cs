@@ -361,6 +361,25 @@ internal static class Native
     [DllImport("shell32.dll")]
     internal static extern int Shell_NotifyIconGetRect(ref NotifyIconIdentifier identifier, out Rect icon);
 
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct FileTime
+    {
+        public uint Low;
+        public uint High;
+
+        /// <summary>The moment, in UTC. Times from the kernel are 100 ns ticks.</summary>
+        public DateTime ToUtc() => DateTime.FromFileTimeUtc(((long)High << 32) | Low);
+    }
+
+    /// <summary>When the process behind a handle started, and when it exited.</summary>
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern bool GetProcessTimes(
+        nint process,
+        out FileTime creation,
+        out FileTime exit,
+        out FileTime kernel,
+        out FileTime user);
+
     /// <summary>Starts a process without a window of its own and without a console.</summary>
     internal const uint CREATE_NO_WINDOW = 0x08000000;
 

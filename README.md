@@ -11,8 +11,7 @@ It can also wake a session for you on a cadence you pick, and bring a session
 back into its own tab after you closed it.
 
 ![The picadence panel: five rows, one session working and four finished, each with
-its star and its age, a line saying 1-5 of 7 and scroll, and one footer row with a
-checkbox and an X](docs/panel.png)
+its star and its age, a line saying 1-5 of 7 and scroll, and an X in the header](docs/panel.png)
 
 ## What the icon means
 
@@ -34,8 +33,7 @@ it changed, the colour of that state, and two small controls.
   again.
 
 Five rows fit at a time and the wheel reaches the rest, with a line underneath
-saying where you are. The footer has one row: a checkbox that starts picadence
-with Windows, and an X that stops it. The panel closes when it loses focus or on
+saying where you are. An X in the panel's header stops picadence. The panel closes when it loses focus or on
 Escape, and it keeps up while it is open. A row itself does nothing: picadence
 never sends input to a session.
 
@@ -86,10 +84,17 @@ that sets its own title can overwrite ours between turns.
 
 ## Start with Windows
 
-Open the panel and tick **Autostart**; Windows starts picadence when you sign in. Click it again to stop. It writes one value under
-your own user's `Run` key (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`),
-needs no administrator, and if picadence later runs from another path it corrects
-that entry itself.
+There is no setting for this, on purpose. Put a shortcut to the exe in your own
+Startup folder, which Windows opens for you:
+
+```
+explorer shell:startup
+```
+
+That is one drag, it needs no registry value, and it cannot go stale when the exe
+moves. If a version of picadence before 0.3 registered itself, it did so under
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`; delete the `picadence`
+value there once and use the shortcut instead.
 
 ## Wake a session on a cadence
 
@@ -152,7 +157,7 @@ than leaving you to work it out:
 
 | missing | what the panel says | what still works |
 |---|---|---|
-| pi | `pi is not installed` instead of an empty list | the tray, the panel, Autostart |
+| pi | `pi is not installed` instead of an empty list | the tray and its panel |
 | Windows Terminal | one line under the sessions | everything except starting a session |
 
 Both are checked on every refresh, so installing one while picadence is running is

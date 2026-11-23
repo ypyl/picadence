@@ -12,7 +12,7 @@ internal static class Panel
 
     private static nint _window;
     private static nint _owner;
-    private static PanelLayout _layout = PanelModel.Build([], DateTimeOffset.UtcNow, false);
+    private static PanelLayout _layout = PanelModel.Build([], DateTimeOffset.UtcNow);
     /// <summary>The scale the window is sized with, from its monitor's DPI.</summary>
     private static float _dpiScale = 1f;
 
@@ -42,8 +42,6 @@ internal static class Panel
     private static SessionRef? _hoveredStart;
 
     /// <summary>Whether the tray is registered to start with Windows.</summary>
-    private static bool _autostartOn;
-
     /// <summary>The session whose cadence list is open, or null.</summary>
     private static SessionRef? _flyoutFor;
 
@@ -121,7 +119,7 @@ internal static class Panel
         _kept = kept;
         _now = now;
         var next = PanelModel.Build(
-            sessions, now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll, Dependencies.Detect(), Measure);
+            sessions, now, _schedules, _flyoutFor, _kept, _scroll, Dependencies.Detect(), Measure);
         var grew = Math.Abs(next.Height - _layout.Height) > 0.5 || Math.Abs(next.Width - _layout.Width) > 0.5;
         _scroll = next.FirstRow;
         _layout = next;
@@ -166,11 +164,10 @@ internal static class Panel
         _schedules = new Dictionary<SessionRef, Schedule>(schedules);
         _kept = kept;
         _now = now;
-        _autostartOn = Autostart.Read() is not null;
         _flyoutFor = null;
         _scroll = 0;
         _layout = PanelModel.Build(
-            sessions, now, _autostartOn, _schedules, kept: _kept, scroll: _scroll,
+            sessions, now, _schedules, kept: _kept, scroll: _scroll,
             dependencies: Dependencies.Detect(), measure: Measure);
 
         if (_window == 0)
@@ -335,7 +332,6 @@ internal static class Panel
         var hit = _layout.HitTest(pointX, pointY);
         PanelAction? over = hit switch
         {
-            PanelHit.Autostart => PanelAction.Autostart,
             PanelHit.Quit => PanelAction.Quit,
             _ => null,
         };
@@ -553,7 +549,7 @@ internal static class Panel
     private static void Rebuild()
     {
         var next = PanelModel.Build(
-            _sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll, Dependencies.Detect(), Measure);
+            _sessions, _now, _schedules, _flyoutFor, _kept, _scroll, Dependencies.Detect(), Measure);
         _scroll = next.FirstRow;
         _layout = next;
 
@@ -619,22 +615,6 @@ internal static class Panel
                 Hide();
                 Native.PostMessage(_owner, Native.WM_CLOSE, 0, 0);
                 break;
-            case PanelHit.Autostart:
-                _autostartOn = Autostart.Toggle(_autostartOn);
-                if (_autostartOn)
-                {
-                    Autostart.Write(Environment.ProcessPath ?? string.Empty);
-                }
-                else
-                {
-                    Autostart.Remove();
-                }
-
-                _layout = PanelModel.Build(
-                    _sessions, _now, _autostartOn, _schedules, _flyoutFor, _kept, _scroll,
-                    Dependencies.Detect(), Measure);
-                Native.InvalidateRect(_window, 0, false);
-                break;
         }
     }
 
@@ -691,8 +671,9 @@ internal static class Panel
         var header = _layout.HeaderBounds;
         Text(dc, _layout.Title, header, 12, Native.FW_SEMIBOLD, PanelTheme.PrimaryText,
             Native.DT_LEFT | Native.DT_VCENTER | Native.DT_SINGLELINE);
-        Text(dc, _layout.Summary, header, 12, Native.FW_NORMAL, PanelTheme.SecondaryText,
-            Native.DT_RIGHT | Native.DT_VCENTER | Native.DT_SINGLELINE);
+        Text(dc, _layout.Summary, _layout.SummaryBounds, 12, Native.FW_NORMAL,
+            PanelTheme.SecondaryText,
+            Native.DT_RIGHT | Native.DT_VCENTER | Native.DT_SINGLELINE | Native.DT_END_ELLIPSIS);
 
         foreach (var row in _layout.Rows)
         {
@@ -800,37 +781,10 @@ internal static class Panel
                 Native.SelectObject(dc, previousPen);
             }
 
-            if (action.BoxBounds.Width > 0)
-            {
-                // The box says checked or not by its mark, which is a shape rather
-                // than a colour, and the outline makes an empty box read as a box.
-                var box = Scaled(action.BoxBounds);
-                Native.FrameRect(dc, ref box, Brush(PanelTheme.SecondaryText));
-
-                if (action.Checked)
-                {
-                    Text(
-                        dc,
-                        PanelModel.CheckGlyph,
-                        action.BoxBounds,
-                        12,
-                        Native.FW_NORMAL,
-                        PanelTheme.PrimaryText,
-                        Native.DT_CENTER | Native.DT_VCENTER | Native.DT_SINGLELINE,
-                        GlyphFont(12));
-                }
-            }
-
-            if (action.Glyph is { Length: > 0 } glyph)
-            {
-                Text(dc, glyph, action.LabelBounds, 12, Native.FW_NORMAL, PanelTheme.PrimaryText,
-                    Native.DT_CENTER | Native.DT_VCENTER | Native.DT_SINGLELINE, GlyphFont(12));
-            }
-            else
-            {
-                Text(dc, action.Label, action.LabelBounds, 12, Native.FW_NORMAL, PanelTheme.PrimaryText,
-                    Native.DT_LEFT | Native.DT_VCENTER | Native.DT_SINGLELINE);
-            }
+            // Every control the panel has left is one glyph, centred in its target.
+            Text(dc, action.Glyph ?? string.Empty, action.LabelBounds, 12, Native.FW_NORMAL,
+                PanelTheme.PrimaryText,
+                Native.DT_CENTER | Native.DT_VCENTER | Native.DT_SINGLELINE, GlyphFont(12));
         }
 
         if (_layout.Flyout is { } flyout)

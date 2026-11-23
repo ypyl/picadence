@@ -5,6 +5,13 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- The X that stops picadence moved into the panel's header, and the row of controls
+  under the list is gone, so the panel is a row shorter.
+- Autostart is removed. Windows already has a Startup folder (`shell:startup`), and
+  a shortcut in it does the same thing without a registry value to keep in step. A
+  `Run` value that an older version left behind keeps working until you delete it.
+
+
 - A session that needs you, finishes, or fails now asks Windows Terminal for a
   notification, and clicking it brings that terminal forward. Terminal 1.26 shows
   it once the profile allows it (`compatibility.allowOSC777`); older versions

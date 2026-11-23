@@ -26,22 +26,15 @@ public enum PanelHit
 /// <summary>The controls at the foot of the panel. Rows are labels, not controls.</summary>
 public enum PanelAction
 {
-    Autostart,
     Quit,
 }
 
-/// <summary>
-/// One control at the foot of the panel. A checkbox carries a box and its state;
-/// anything else carries only a label, aligned by the painter.
-/// </summary>
+/// <summary>One control in the panel. Quit is a glyph, drawn by the painter.</summary>
 public sealed record PanelActionRow(
     PanelAction Action,
     DipRect Bounds,
-    DipRect BoxBounds,
     DipRect LabelBounds,
-    string Label,
-    bool Checked,
-    string? Glyph = null);
+    string? Glyph);
 
 /// <summary>A row is either a session that is running or one the user kept.</summary>
 public enum PanelRowKind
@@ -98,6 +91,9 @@ public sealed class PanelLayout
     public required string Title { get; init; }
     public required DipRect HeaderBounds { get; init; }
     public required string Summary { get; init; }
+
+    /// <summary>Where the summary stops, so the X in the header has room.</summary>
+    public required DipRect SummaryBounds { get; init; }
     public string? EmptyText { get; init; }
     public string? EmptyHint { get; init; }
     public DipRect EmptyBounds { get; init; }
@@ -174,12 +170,6 @@ public static class PanelModel
     /// <summary>How far the label and the value sit inside the hover fill.</summary>
     public const double ActionPadding = 12;
 
-    /// <summary>The checkbox: small enough to read as one, big enough to hit.</summary>
-    public const double CheckSize = 14;
-
-    /// <summary>How far the label sits from the box it belongs to.</summary>
-    public const double CheckGap = 8;
-
     /// <summary>
     /// A rough width for text, used only when nobody passed a real measurement. The
     /// tray passes one; tests use this so a layout test does not need a font.
@@ -207,14 +197,14 @@ public static class PanelModel
     /// <summary>A play triangle, for starting a kept session. Segoe MDL2 Assets.</summary>
     public const string StartGlyph = "\uE768";
 
-    /// <summary>A check mark, for the checkbox that starts picadence with Windows.</summary>
-    public const string CheckGlyph = "\uE73E";
-
     /// <summary>An X, for the control that closes the panel and stops the tray.</summary>
     public const string QuitGlyph = "\uE8BB";
 
     /// <summary>How wide an icon control's glyph is, and how much room it gets.</summary>
     public const double IconSize = 12;
+
+    /// <summary>The X in the header: a 22 square target, which a mouse can hit.</summary>
+    public const double HeaderControl = 22;
     /// <summary>How many rows one screen shows. The rest are a scroll away.</summary>
     public const int VisibleRows = 5;
 
@@ -248,7 +238,6 @@ public static class PanelModel
     public static PanelLayout Build(
         IReadOnlyList<AgentSession> sessions,
         DateTimeOffset now,
-        bool autostartOn,
         IReadOnlyDictionary<SessionRef, Schedule>? schedules = null,
         SessionRef? flyoutFor = null,
         IReadOnlyList<KeptSession>? kept = null,
@@ -394,25 +383,7 @@ public static class PanelModel
             y += 18;
         }
 
-        y += RowSpacing;
-
-        // One row, two controls: the checkbox on the left edge, the X on the right.
-        var autostartLabel = "Autostart";
-        var autostartWidth = ControlWidth(autostartLabel, measure) + CheckSize + CheckGap;
-        var quitWidth = (2 * (ActionInset + ActionPadding)) + IconSize;
-
-        var actions = new List<PanelActionRow>(2)
-        {
-            Checkbox(
-                PanelAction.Autostart,
-                new DipRect(Padding, y, autostartWidth, ActionHeight),
-                autostartLabel,
-                autostartOn),
-            Icon(
-                PanelAction.Quit,
-                new DipRect(Padding + inner - quitWidth, y, quitWidth, ActionHeight)),
-        };
-        y += ActionHeight + Padding;
+        y += Padding;
 
         var counts = sessions
             .GroupBy(session => session.State)
@@ -433,13 +404,33 @@ public static class PanelModel
             HeaderBounds = header,
             Title = "picadence",
             Summary = Summary(counts, sessions.Count),
+            SummaryBounds = new DipRect(
+                header.X + 60,
+                header.Y,
+                Math.Max(0, header.Width - 60 - HeaderControl - 8),
+                header.Height),
             EmptyText = empty ? (present.Pi ? "No sessions are running" : "pi is not installed") : null,
             EmptyHint = empty
                 ? (present.Pi ? "Start pi to see it here" : "Install it from pi.dev, then start a session")
                 : null,
             EmptyBounds = emptyBounds,
             Rows = rows,
-            Actions = actions,
+            Actions =
+            [
+                new PanelActionRow(
+                    PanelAction.Quit,
+                    new DipRect(
+                        Padding + inner - HeaderControl,
+                        Padding + ((HeaderHeight - HeaderControl) / 2),
+                        HeaderControl,
+                        HeaderControl),
+                    new DipRect(
+                        Padding + inner - HeaderControl + 4,
+                        Padding + ((HeaderHeight - HeaderControl) / 2) + 4,
+                        HeaderControl - 8,
+                        HeaderControl - 8),
+                    QuitGlyph),
+            ],
             TotalRows = total,
             FirstRow = first,
             Notice = notice,
@@ -569,49 +560,8 @@ public static class PanelModel
         return new PanelFlyout(index, new DipRect(x, y, FlyoutWidth, height), headerText, header, items);
     }
 
-    /// <summary>A control is as wide as its contents and the inset around them.</summary>
-    private static double ControlWidth(string text, Func<string, double>? measure) =>
-        (2 * ActionInset) + (2 * ActionPadding) + Measure(text, measure);
-
     private static double Measure(string text, Func<string, double>? measure) =>
         measure?.Invoke(text) ?? (text.Length * EstimatePerCharacter);
-
-    /// <summary>
-    /// The checkbox: a box at the inset, and the label right of it, both inside the
-    /// control so a hover fill that is drawn first sits under neither of them.
-    /// </summary>
-    private static PanelActionRow Checkbox(PanelAction action, DipRect bounds, string label, bool on)
-    {
-        var left = bounds.X + ActionInset + ActionPadding;
-        var box = new DipRect(left, bounds.Y + ((bounds.Height - CheckSize) / 2), CheckSize, CheckSize);
-
-        return new PanelActionRow(
-            action,
-            bounds,
-            box,
-            new DipRect(
-                box.X + CheckSize + CheckGap,
-                bounds.Y,
-                Math.Max(0, bounds.X + bounds.Width - ActionInset - ActionPadding - box.X - CheckSize - CheckGap),
-                bounds.Height),
-            label,
-            on);
-    }
-
-    /// <summary>A control that is one glyph, centred in its own edges.</summary>
-    private static PanelActionRow Icon(PanelAction action, DipRect bounds) =>
-        new(
-            action,
-            bounds,
-            default,
-            new DipRect(
-                bounds.X + ActionInset + ActionPadding,
-                bounds.Y,
-                Math.Max(0, bounds.Width - (2 * (ActionInset + ActionPadding))),
-                bounds.Height),
-            Label: string.Empty,
-            Checked: false,
-            QuitGlyph);
 
     private static string Summary(IReadOnlyDictionary<AgentState, int> counts, int total)
     {
@@ -671,7 +621,7 @@ public enum PanelPointer
 public static class PanelCursor
 {
     public static PanelPointer For(PanelHit hit) =>
-        hit is PanelHit.Quit or PanelHit.Autostart or PanelHit.Flyout or PanelHit.Pin or PanelHit.Start
+        hit is PanelHit.Quit or PanelHit.Flyout or PanelHit.Pin or PanelHit.Start
             ? PanelPointer.Hand
             : PanelPointer.Arrow;
 }

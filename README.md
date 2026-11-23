@@ -25,9 +25,9 @@ failed, with the age of each change and the two controls](docs/panel.png)
 One icon covers every session, and the most urgent state wins: red over amber,
 amber over green. A click on the icon opens a small dark panel with a summary, one
 row per session (folder, state, what it is doing, how long ago it changed, and the
-state's colour), and Quit. It closes when it loses focus or on Escape, and it
-keeps up while it is open. A row does nothing: picadence never sends input to a
-session.
+state's colour), and the X that stops picadence. It closes when it loses focus or
+on Escape, and it keeps up while it is open. A row does nothing: picadence never
+sends input to a session.
 
 ## What the tab says
 

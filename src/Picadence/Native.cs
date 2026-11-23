@@ -314,6 +314,18 @@ internal static class Native
     [DllImport("gdi32.dll")]
     internal static extern bool DeleteDC(nint hdc);
 
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct SizeExtent
+    {
+        public int cx;
+        public int cy;
+    }
+
+    /// <summary>How wide a string is in the font selected into the context.</summary>
+    [DllImport("gdi32.dll", CharSet = CharSet.Unicode)]
+    internal static extern bool GetTextExtentPoint32W(
+        nint hdc, string text, int length, out SizeExtent size);
+
     [DllImport("gdi32.dll")]
     internal static extern nint CreateSolidBrush(uint colour);
 

@@ -40,7 +40,8 @@ public sealed record PanelActionRow(
     DipRect BoxBounds,
     DipRect LabelBounds,
     string Label,
-    bool Checked);
+    bool Checked,
+    string? Glyph = null);
 
 /// <summary>A row is either a session that is running or one the user kept.</summary>
 public enum PanelRowKind
@@ -179,10 +180,11 @@ public static class PanelModel
     /// <summary>How far the label sits from the box it belongs to.</summary>
     public const double CheckGap = 8;
 
-    /// <summary>The width the checkbox control needs, and the width Quit needs.</summary>
-    public const double AutostartWidth = 168;
-
-    public const double QuitWidth = 72;
+    /// <summary>
+    /// A rough width for text, used only when nobody passed a real measurement. The
+    /// tray passes one; tests use this so a layout test does not need a font.
+    /// </summary>
+    public const double EstimatePerCharacter = 6.2;
     public const double RowPadding = 12;
     public const double AgeWidth = 44;
 
@@ -203,6 +205,12 @@ public static class PanelModel
 
     /// <summary>A check mark, for the checkbox that starts picadence with Windows.</summary>
     public const string CheckGlyph = "\uE73E";
+
+    /// <summary>An X, for the control that closes the panel and stops the tray.</summary>
+    public const string QuitGlyph = "\uE8BB";
+
+    /// <summary>How wide an icon control's glyph is, and how much room it gets.</summary>
+    public const double IconSize = 12;
     /// <summary>How many rows one screen shows. The rest are a scroll away.</summary>
     public const int VisibleRows = 5;
 
@@ -241,7 +249,8 @@ public static class PanelModel
         SessionRef? flyoutFor = null,
         IReadOnlyList<KeptSession>? kept = null,
         int scroll = 0,
-        Dependencies? dependencies = null)
+        Dependencies? dependencies = null,
+        Func<string, double>? measure = null)
     {
         var present = dependencies ?? Dependencies.Present;
 
@@ -373,18 +382,21 @@ public static class PanelModel
 
         y += RowSpacing;
 
-        // One row, two controls: the checkbox on the left edge, Quit on the right.
+        // One row, two controls: the checkbox on the left edge, the X on the right.
+        var autostartLabel = "Autostart";
+        var autostartWidth = ControlWidth(autostartLabel, measure) + CheckSize + CheckGap;
+        var quitWidth = (2 * (ActionInset + ActionPadding)) + IconSize;
+
         var actions = new List<PanelActionRow>(2)
         {
             Checkbox(
                 PanelAction.Autostart,
-                new DipRect(Padding, y, AutostartWidth, ActionHeight),
-                "Autostart",
+                new DipRect(Padding, y, autostartWidth, ActionHeight),
+                autostartLabel,
                 autostartOn),
-            Label(
+            Icon(
                 PanelAction.Quit,
-                new DipRect(Padding + inner - QuitWidth, y, QuitWidth, ActionHeight),
-                "Quit"),
+                new DipRect(Padding + inner - quitWidth, y, quitWidth, ActionHeight)),
         };
         y += ActionHeight + Padding;
 
@@ -543,6 +555,13 @@ public static class PanelModel
         return new PanelFlyout(index, new DipRect(x, y, FlyoutWidth, height), headerText, header, items);
     }
 
+    /// <summary>A control is as wide as its contents and the inset around them.</summary>
+    private static double ControlWidth(string text, Func<string, double>? measure) =>
+        (2 * ActionInset) + (2 * ActionPadding) + Measure(text, measure);
+
+    private static double Measure(string text, Func<string, double>? measure) =>
+        measure?.Invoke(text) ?? (text.Length * EstimatePerCharacter);
+
     /// <summary>
     /// The checkbox: a box at the inset, and the label right of it, both inside the
     /// control so a hover fill that is drawn first sits under neither of them.
@@ -565,8 +584,8 @@ public static class PanelModel
             on);
     }
 
-    /// <summary>A control that is only words, laid out inside its own edges.</summary>
-    private static PanelActionRow Label(PanelAction action, DipRect bounds, string label) =>
+    /// <summary>A control that is one glyph, centred in its own edges.</summary>
+    private static PanelActionRow Icon(PanelAction action, DipRect bounds) =>
         new(
             action,
             bounds,
@@ -576,8 +595,9 @@ public static class PanelModel
                 bounds.Y,
                 Math.Max(0, bounds.Width - (2 * (ActionInset + ActionPadding))),
                 bounds.Height),
-            label,
-            Checked: false);
+            Label: string.Empty,
+            Checked: false,
+            QuitGlyph);
 
     private static string Summary(IReadOnlyDictionary<AgentState, int> counts, int total)
     {

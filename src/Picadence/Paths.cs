@@ -21,6 +21,12 @@ public static class Paths
     /// <summary>One kept session per session id, owned by the tray.</summary>
     public static string Pins => Path.Combine(Root, "pins");
 
+    /// <summary>Where pi keeps its own settings, including the packages it has installed.</summary>
+    public static string PiAgent => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        ".pi",
+        "agent");
+
     /// <summary>Where pi keeps its conversations, one file per session and folder.</summary>
     public static string PiSessions => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),

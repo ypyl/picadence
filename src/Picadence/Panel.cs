@@ -119,7 +119,7 @@ internal static class Panel
         _kept = kept;
         _now = now;
         var next = PanelModel.Build(
-            sessions, now, _schedules, _flyoutFor, _kept, _scroll, Dependencies.Detect(), Measure);
+            sessions, now, _schedules, _flyoutFor, _kept, _scroll, DependenciesHere(), Measure);
         var grew = Math.Abs(next.Height - _layout.Height) > 0.5 || Math.Abs(next.Width - _layout.Width) > 0.5;
         _scroll = next.FirstRow;
         _layout = next;
@@ -168,7 +168,7 @@ internal static class Panel
         _scroll = 0;
         _layout = PanelModel.Build(
             sessions, now, _schedules, kept: _kept, scroll: _scroll,
-            dependencies: Dependencies.Detect(), measure: Measure);
+            dependencies: DependenciesHere(), measure: Measure);
 
         if (_window == 0)
         {
@@ -366,6 +366,25 @@ internal static class Panel
         Native.InvalidateRect(_window, 0, false);
     }
 
+    /// <summary>
+    /// What this machine has, including whether anything has reported: a live session
+    /// or a kept one is proof that the pi half is installed and running.
+    /// </summary>
+    private static Dependencies DependenciesHere()
+    {
+        var reported = _sessions.Count > 0 || _kept.Count > 0;
+        var folders = _sessions
+            .Select(session => session.Cwd)
+            .Concat(_kept.Select(entry => (string?)entry.Pin.Folder))
+            .Where(folder => !string.IsNullOrWhiteSpace(folder))
+            .Select(folder => folder!);
+
+        return Dependencies.Detect() with
+        {
+            Half = PiExtension.Check(reported, PiExtension.SettingsFiles(folders)),
+        };
+    }
+
     /// <summary>The row under a point, whether the point landed on its body or its pin.</summary>
     private static PanelRow? RowAt(double x, double y)
     {
@@ -549,7 +568,7 @@ internal static class Panel
     private static void Rebuild()
     {
         var next = PanelModel.Build(
-            _sessions, _now, _schedules, _flyoutFor, _kept, _scroll, Dependencies.Detect(), Measure);
+            _sessions, _now, _schedules, _flyoutFor, _kept, _scroll, DependenciesHere(), Measure);
         _scroll = next.FirstRow;
         _layout = next;
 

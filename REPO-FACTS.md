@@ -44,6 +44,13 @@ Rules:
   nothing that maps them to a window or a tab index. UIA can select a tab by its
   title and is what every third-party tool does; it is unsupported and fragile
   because titles change, repeat, and get renamed.
+- The repository is a pi package: a root `package.json` with
+  `"pi": { "extensions": ["./extensions/picadence.js"] }`, so
+  `pi install git:github.com/ypyl/picadence` works. The manifest is load-bearing,
+  not cosmetic: pi's loader reads `pi.extensions` first and returns it
+  (`dist/core/extensions/loader.js`, `resolveExtensionEntries`), and only scans
+  `extensions/*.js` when no manifest is there. Without it, `picadence.test.mjs`
+  would load as an extension in every session.
 - winget carries the tray as `Ypyl.Picadence`, `InstallerType: portable`, from the
   release asset. The identifier is permanent. The first submission is
   microsoft/winget-pkgs#487538, opened 2026-11-23 with manifests that passed

@@ -177,6 +177,20 @@ Then install the pi half, below.
 
 ## Install the pi side
 
+The pi half is a pi package that lives in this repository, so there is no file to
+download:
+
+```
+pi install git:github.com/ypyl/picadence
+```
+
+`pi update --extensions` keeps it current. The tray checks pi's own settings and
+tells you in the panel when the half is missing, or when it is installed and has
+not reported yet.
+
+The long way, if you already have a clone, is the file itself:
+`pi install ./extensions/picadence.js`.
+
 The tray is half the product. The other half runs inside pi and reports state.
 
 ```bash

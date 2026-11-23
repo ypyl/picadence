@@ -722,7 +722,7 @@ public class PanelDependencyTests
     [Fact(DisplayName = "a missing pi is named instead of an empty list")]
     public void A_missing_pi_is_named_instead_of_an_empty_list()
     {
-        var layout = PanelModel.Build([], Now, dependencies: new Dependencies(Pi: false, Terminal: true));
+        var layout = PanelModel.Build([], Now, dependencies: new Dependencies(Pi: false, Terminal: true, PiHalf.Working));
 
         Assert.Empty(layout.Rows);
         Assert.Equal("pi is not installed", layout.EmptyText);
@@ -741,7 +741,7 @@ public class PanelDependencyTests
         var layout = PanelModel.Build(
             [Session(1)],
             Now,
-            dependencies: new Dependencies(Pi: true, Terminal: false));
+            dependencies: new Dependencies(Pi: true, Terminal: false, PiHalf.Working));
 
         Assert.Single(layout.Rows);
         Assert.Equal(
@@ -775,7 +775,7 @@ public class PanelDependencyTests
             [],
             Now,
             kept: [kept],
-            dependencies: new Dependencies(Pi: true, Terminal: false));
+            dependencies: new Dependencies(Pi: true, Terminal: false, PiHalf.Working));
 
         var row = Assert.Single(layout.Rows);
         Assert.Equal("not running", row.StateWord);
@@ -783,5 +783,58 @@ public class PanelDependencyTests
         Assert.Equal(default, row.StartBounds);
         Assert.NotNull(layout.Notice);
         Assert.Single(layout.Actions);
+    }
+}
+
+public class PanelPiHalfTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 11, 23, 23, 0, 0, TimeSpan.Zero);
+
+    [Fact(DisplayName = "a missing pi half is named with the command that installs it")]
+    public void A_missing_pi_half_is_named_with_the_command_that_installs_it()
+    {
+        var layout = PanelModel.Build(
+            [],
+            Now,
+            dependencies: new Dependencies(Pi: true, Terminal: true, PiHalf.Missing));
+
+        Assert.Equal(
+            "the pi half is not installed · pi install git:github.com/ypyl/picadence",
+            layout.Notice);
+        Assert.Equal("No sessions are running", layout.EmptyText);
+    }
+
+    [Fact(DisplayName = "a declared pi half that has not reported says so")]
+    public void A_declared_pi_half_that_has_not_reported_says_so()
+    {
+        var layout = PanelModel.Build(
+            [],
+            Now,
+            dependencies: new Dependencies(Pi: true, Terminal: true, PiHalf.Declared));
+
+        Assert.Equal(
+            "the pi half is installed and has not reported · it reports when a pi session starts",
+            layout.Notice);
+        Assert.DoesNotContain("pi install", layout.Notice, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "a reported session silences the pi half notice")]
+    public void A_reported_session_silences_the_pi_half_notice()
+    {
+        // Nothing reported, so the tray does not know: no notice when the half worked.
+        var quiet = PanelModel.Build(
+            [],
+            Now,
+            dependencies: new Dependencies(Pi: true, Terminal: true, PiHalf.Working));
+
+        Assert.Null(quiet.Notice);
+
+        // And a live session says the same thing, because a live session is the proof.
+        var live = new AgentSession(
+            new SessionRef(1, "session-1"), "trayclaw", "trayclaw", null, AgentState.Working, null, Now);
+        var layout = PanelModel.Build([live], Now, dependencies: Dependencies.Present);
+
+        Assert.Null(layout.Notice);
+        Assert.Single(layout.Rows);
     }
 }

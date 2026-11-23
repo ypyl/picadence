@@ -372,9 +372,20 @@ public static class PanelModel
             y += RowHeight;
         }
 
-        var notice = present.Terminal
+        // The pi half comes first when both apply: without it nothing is reported at
+        // all, and a terminal that cannot start a session matters less than a product
+        // that cannot see one.
+        var notice = !present.Pi
             ? null
-            : "windows terminal is not installed \u00b7 a session cannot be started";
+            : present.Half switch
+            {
+                PiHalf.Missing => "the pi half is not installed \u00b7 " + PiExtension.Command,
+                PiHalf.Declared =>
+                    "the pi half is installed and has not reported \u00b7 it reports when a pi session starts",
+                _ => present.Terminal
+                    ? null
+                    : "windows terminal is not installed \u00b7 a session cannot be started",
+            };
         var noticeBounds = default(DipRect);
         if (notice is not null)
         {

@@ -51,6 +51,13 @@ Rules:
   (`dist/core/extensions/loader.js`, `resolveExtensionEntries`), and only scans
   `extensions/*.js` when no manifest is there. Without it, `picadence.test.mjs`
   would load as an extension in every session.
+- The executable is unsigned, on purpose: a code-signing certificate costs money
+  every year, and only an EV one is granted immediate SmartScreen reputation (an OV
+  certificate and Azure Trusted Signing both start at zero). Since 2023 the CA
+  requirement puts signing keys in hardware, so a hosted runner cannot sign with a
+  USB token anyway; it would need Trusted Signing or a cloud HSM. Until then the
+  README tells the reader what the prompt means and how to check the hash, and the
+  winget path never takes the browser route.
 - winget carries the tray as `Ypyl.Picadence`, `InstallerType: portable`, from the
   release asset. The identifier is permanent. The submission is
   microsoft/winget-pkgs#487538, opened 2026-11-23 for 0.2.0 and moved to 0.3.0 on

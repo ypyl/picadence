@@ -61,6 +61,7 @@ public static class StateFile
 
             folder = Truncate(folder, MaxFolderLength) ?? "unknown";
             var updatedAt = Timestamp(root, "updatedAt") ?? fallbackUpdatedAt;
+            var startedAt = Timestamp(root, "startedAt");
 
             session = new AgentSession(
                 reference,
@@ -72,6 +73,7 @@ public static class StateFile
                 updatedAt)
             {
                 Cwd = cwd,
+                StartedAt = startedAt,
             };
             return true;
         }

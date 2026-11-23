@@ -135,7 +135,7 @@ internal static class Program
     /// A pid that can be opened is not enough: Windows hands dead numbers out again,
     /// and a reused one outlives the session it never belonged to.
     /// </summary>
-    private static bool IsSessionAlive(int pid, DateTime writtenUtc)
+    private static bool IsSessionAlive(int pid, DateTime writtenUtc, DateTimeOffset? startedAt)
     {
         if (pid <= 0)
         {
@@ -152,8 +152,18 @@ internal static class Program
         {
             // A process whose start time cannot be read is assumed to be the session:
             // showing a stale row is the lesser fault.
-            return !Native.GetProcessTimes(handle, out var creation, out _, out _, out _)
-                || SessionStore.StartedBefore(creation.ToUtc(), writtenUtc);
+            if (!Native.GetProcessTimes(handle, out var creation, out _, out _, out _))
+            {
+                return true;
+            }
+
+            var started = creation.ToUtc();
+
+            // A file that says when its writer started is exact: the process holding
+            // this id has to have started then.
+            return startedAt is { } claimed
+                ? SessionStore.StartedTogether(started, claimed.UtcDateTime)
+                : SessionStore.StartedBefore(started, writtenUtc);
         }
         finally
         {

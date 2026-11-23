@@ -24,4 +24,11 @@ public sealed record AgentSession(
     /// <see cref="Folder"/>; a restart needs this, because a name is not a place.
     /// </summary>
     public string? Cwd { get; init; }
+
+    /// <summary>
+    /// When the process that wrote the file started, as it reported. The tray compares
+    /// it with the kernel's answer to tell this session from a later process that was
+    /// given the same pid. Absent in files written by an older extension.
+    /// </summary>
+    public DateTimeOffset? StartedAt { get; init; }
 }

@@ -6,7 +6,7 @@
 // and reused until the file's length or write time moves.
 namespace Picadence;
 
-public sealed class SessionStore(string directory, Func<int, DateTime, bool> isAlive)
+public sealed class SessionStore(string directory, Func<int, DateTime, DateTimeOffset?, bool> isAlive)
 {
     /// <summary>
     /// A state file is a few hundred bytes. Anything larger is not one, and
@@ -45,6 +45,13 @@ public sealed class SessionStore(string directory, Func<int, DateTime, bool> isA
     public static bool StartedBefore(DateTime createdUtc, DateTime writtenUtc) =>
         createdUtc <= writtenUtc.AddSeconds(2);
 
+    /// <summary>
+    /// True when the kernel's start time is the one the file claims. Two clocks write
+    /// these, so they agree to within a couple of seconds rather than exactly.
+    /// </summary>
+    public static bool StartedTogether(DateTime createdUtc, DateTime claimedUtc) =>
+        (createdUtc - claimedUtc).Duration() <= TimeSpan.FromSeconds(2);
+
     public IReadOnlyList<AgentSession> ReadAll(DateTimeOffset now)
     {
         if (!System.IO.Directory.Exists(Directory))
@@ -81,14 +88,6 @@ public sealed class SessionStore(string directory, Func<int, DateTime, bool> isA
                 continue;
             }
 
-            // The write time goes with the question: a process holding a reused pid
-            // started after this file was written, so it cannot be this session.
-            if (!isAlive(reference.Pid, writeTimeUtc))
-            {
-                Remove(path);
-                _parsed.Remove(name);
-                continue;
-            }
 
             if (length > MaxFileBytes)
             {
@@ -100,6 +99,16 @@ public sealed class SessionStore(string directory, Func<int, DateTime, bool> isA
                 && parsed.WriteTimeUtc == writeTimeUtc)
             {
                 parsed.Seen = tick;
+
+                // The question comes after the parse, because the answer needs what
+                // the file says about the process that wrote it.
+                if (!isAlive(parsed.Session.Reference.Pid, writeTimeUtc, parsed.Session.StartedAt))
+                {
+                    Remove(path);
+                    _parsed.Remove(name);
+                    continue;
+                }
+
                 sessions.Add(parsed.Session);
                 continue;
             }
@@ -120,6 +129,13 @@ public sealed class SessionStore(string directory, Func<int, DateTime, bool> isA
 
             if (StateFile.TryRead(json, reference, writeTimeUtc, out var session))
             {
+                if (!isAlive(session.Reference.Pid, writeTimeUtc, session.StartedAt))
+                {
+                    Remove(path);
+                    _parsed.Remove(name);
+                    continue;
+                }
+
                 _parsed[name] = new Parsed
                 {
                     Length = length,

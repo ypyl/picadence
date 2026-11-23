@@ -5,27 +5,27 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
-- The panel now says when something it needs is missing. Without pi it says so
-  instead of pretending the machine is quiet, and without Windows Terminal it
-  still lists your sessions and tells you they cannot be started.
-
-
-- A cadence can now reach a session you kept and closed. At its due time the tray
-  opens that session's tab and the wake-up arrives in it, saying how many windows
-  passed while it was closed. A session you did not keep is still never woken.
-
-
-- A session can be kept with the pin on its row. It stays in the panel after its
-  tab closes, saying it is not running, with a start control beside the pin that
-  opens a new tab continuing it, conversation included.
-
+## picadence-v0.2.0
 
 - Each pi tab now says what its session is doing, in the tab itself: a mark and
   the session's name, so a tab that needs you looks different from one that is
-  working, even with picadence not running.
-- In Windows Terminal that state also shows as a ring on the tab and a progress
-  bar on the taskbar. `PICADENCE_TAB_PROGRESS=0` turns it off, and `=1` forces it
-  on in a terminal picadence does not recognise.
+  working, even with picadence not running. In Windows Terminal the same state
+  shows as a ring on the tab and a progress bar on the taskbar;
+  `PICADENCE_TAB_PROGRESS=0` turns the ring off and `=1` forces it on elsewhere.
+- A session can be kept with the pin on its row. It stays in the panel after its
+  tab closes, saying it is not running, and a play control beside the pin opens a
+  new tab that continues the conversation where it stopped.
+- A cadence can reach a session you kept and closed. At its due time the tray
+  opens that session's tab and the wake-up arrives in it, saying how many windows
+  passed while it was closed. A session you did not keep is still never woken.
+- The panel shows five sessions at a time and scrolls to the rest, with a line
+  saying where in the list you are.
+- The panel names a missing dependency. Without pi it says so instead of claiming
+  the machine is quiet, and without Windows Terminal it still lists your sessions
+  and tells you they cannot be started.
+- The foot of the panel is one row: a checkbox that starts picadence with Windows,
+  and an X that stops it.
+- The repository is MIT licensed.
 
 ## picadence-v0.1.0
 

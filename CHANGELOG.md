@@ -5,6 +5,11 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- A session that needs you, finishes, or fails now asks Windows Terminal for a
+  notification, and clicking it brings that terminal forward. Terminal 1.26 shows
+  it once the profile allows it (`compatibility.allowOSC777`); older versions
+  ignore it. `PICADENCE_NOTIFY=0` turns the request off.
+
 ## picadence-v0.2.0
 
 - Each pi tab now says what its session is doing, in the tab itself: a mark and

@@ -11,8 +11,11 @@ import picadence, {
   PingMaxAgeMilliseconds,
   pingDirectory,
   pollPings,
+  notifyBody,
+  notifySequence,
   tabProgressSequence,
   tabTitle,
+  wantsNotification,
   wantsTabProgress,
   reduce,
   stateDirectory,
@@ -430,4 +433,57 @@ test("another terminal is written nothing", async () => {
     }
     fs.rmSync(localAppData, { recursive: true, force: true });
   }
+});
+
+test("a session that needs you asks the terminal to notify", () => {
+  // OSC 777 from the terminal's own vocabulary, terminated the way the tab's other
+  // sequences are. The bytes are the promise: a terminal reads this or ignores it.
+  assert.equal(
+    notifySequence("blocked", "trayclaw"),
+    "\u001b]777;notify;picadence;trayclaw needs you\u0007",
+  );
+  assert.equal(
+    notifySequence("done", "trayclaw"),
+    "\u001b]777;notify;picadence;trayclaw finished\u0007",
+  );
+  assert.equal(
+    notifySequence("error", "trayclaw"),
+    "\u001b]777;notify;picadence;trayclaw failed\u0007",
+  );
+});
+
+test("a quiet session asks for nothing", () => {
+  for (const state of ["idle", "working", undefined]) {
+    assert.equal(notifySequence(state, "trayclaw"), "");
+    assert.equal(notifyBody(state, "trayclaw"), null);
+  }
+});
+
+test("the switch turns it off", () => {
+  const previous = process.env.PICADENCE_NOTIFY;
+  try {
+    process.env.PICADENCE_NOTIFY = "0";
+    assert.equal(wantsNotification(), false);
+    process.env.PICADENCE_NOTIFY = "1";
+    assert.equal(wantsNotification(), true);
+    delete process.env.PICADENCE_NOTIFY;
+    assert.equal(wantsNotification(), true, "absent means on");
+  } finally {
+    if (previous === undefined) {
+      delete process.env.PICADENCE_NOTIFY;
+    } else {
+      process.env.PICADENCE_NOTIFY = previous;
+    }
+  }
+});
+
+test("the words cannot break the sequence", () => {
+  // A folder named with the separator and an escape would add a fourth field or
+  // end the sequence early; both are stripped, and the field stays one field.
+  const sequence = notifySequence("done", "a;b\u001bc\u0007d");
+  assert.equal(sequence, "\u001b]777;notify;picadence;abcd finished\u0007");
+  assert.equal(sequence.split(";").length, 4);
+
+  // A name that is nothing but separators still says something.
+  assert.equal(notifySequence("done", ";;\u0007"), "\u001b]777;notify;picadence;a session finished\u0007");
 });

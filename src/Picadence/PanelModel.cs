@@ -379,7 +379,7 @@ public static class PanelModel
             Checkbox(
                 PanelAction.Autostart,
                 new DipRect(Padding, y, AutostartWidth, ActionHeight),
-                "Start with Windows",
+                "Autostart",
                 autostartOn),
             Label(
                 PanelAction.Quit,

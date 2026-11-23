@@ -209,7 +209,7 @@ public class PanelModelTests
 
         Assert.True(on.Checked);
         Assert.False(off.Checked);
-        Assert.Equal("Start with Windows", on.Label);
+        Assert.Equal("Autostart", on.Label);
         Assert.Equal(PanelModel.CheckSize, on.BoxBounds.Width);
         Assert.True(on.BoxBounds.Height > 0, "the box has a height");
         Assert.Equal(on.BoxBounds.Y + (on.BoxBounds.Height / 2), on.Bounds.Y + (on.Bounds.Height / 2));

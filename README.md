@@ -63,8 +63,7 @@ that sets its own title can overwrite ours between turns.
 
 ## Start with Windows
 
-Open the panel and click **Start with Windows**; it reads `on`, and Windows
-starts picadence when you sign in. Click it again to stop. It writes one value under
+Open the panel and tick **Autostart**; Windows starts picadence when you sign in. Click it again to stop. It writes one value under
 your own user's `Run` key (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`),
 needs no administrator, and if picadence later runs from another path it corrects
 that entry itself.

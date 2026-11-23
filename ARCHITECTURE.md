@@ -47,7 +47,7 @@ flowchart TB
   pi["External: pi<br/>TUI session in a terminal tab"]
   os["External: Windows shell<br/>notification area"]
 
-  user -->|"click, right click a row, Start with Windows, Quit"| app
+  user -->|"click, right click a row, Autostart, Quit"| app
   app -->|"Shell_NotifyIcon, Win32"| os
   app -->|"one Run value, HKCU"| os
   os -->|"icon and panel"| user
@@ -96,7 +96,7 @@ flowchart TB
 | state directory | one JSON file per session: pid, session id, folder, name, model, state, detail, updated time | `%LOCALAPPDATA%/picadence/agents` | written on every transition, removed on clean exit or by the tray once the process is gone |
 | schedule directory | one cadence per session id: name, folder, cadence, next time, last issued time, missed windows | `%LOCALAPPDATA%/picadence/schedules` | written when a cadence is armed or fires, removed only when the user turns it off |
 | ping directory | one message per session id: the moment, the cadence, the missed count, the words | `%LOCALAPPDATA%/picadence/pings` | written when a cadence is due, deleted by the session that consumes it |
-| Run value | the command Windows runs at sign-in, or nothing | `HKCU/Software/Microsoft/Windows/CurrentVersion/Run/picadence` | present only while Start with Windows is on |
+| Run value | the command Windows runs at sign-in, or nothing | `HKCU/Software/Microsoft/Windows/CurrentVersion/Run/picadence` | present only while Autostart is on |
 
 ## Trust note
 

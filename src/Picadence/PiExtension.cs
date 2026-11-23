@@ -28,17 +28,17 @@ public static class PiExtension
     private const string Mention = "picadence";
 
     /// <summary>
-    /// The answer for this moment: a report outranks everything, then the user's
-    /// settings, then the settings beside each folder the tray knows about.
+    /// The answer for this moment: a report outranks everything, then the settings
+    /// files, which are the user's own and one per folder the tray knows about.
     /// </summary>
-    public static PiHalf Check(bool anythingReported, IEnumerable<string> folders)
+    public static PiHalf Check(bool anythingReported, IEnumerable<string> settingsFiles)
     {
         if (anythingReported)
         {
             return PiHalf.Working;
         }
 
-        foreach (var file in SettingsFiles(folders))
+        foreach (var file in settingsFiles)
         {
             if (Declares(file))
             {

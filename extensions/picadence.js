@@ -167,6 +167,57 @@ export function tabProgressSequence(state) {
   }
 }
 
+/**
+ * What a session says when it wants a person, and nothing for the states that do
+ * not. The words are the body of the terminal's own notification.
+ */
+export const NOTIFY_WORDS = Object.freeze({
+  blocked: "needs you",
+  done: "finished",
+  error: "failed",
+});
+
+/**
+ * Whether the tab asks the terminal to notify. On unless the switch says off: a
+ * terminal that does not know the sequence ignores it, and one that knows it shows
+ * a notification the user chooses to click.
+ */
+export function wantsNotification(env = process.env) {
+  return env.PICADENCE_NOTIFY !== "0";
+}
+
+/** Anything that could end the sequence early or add a fourth field. */
+function cleanField(value) {
+  return String(value ?? "").replace(/[\u0000-\u001f\u007f;]/g, "").trim();
+}
+
+/** The body of the notification for a state, or null when nobody is wanted. */
+export function notifyBody(state, label) {
+  const words = NOTIFY_WORDS[state];
+  if (!words) {
+    return null;
+  }
+
+  return `${cleanField(label) || "a session"} ${words}`;
+}
+
+// shortcut: Terminal 1.25 ignores OSC 777, and 1.26 needs the profile setting
+// compatibility.allowOSC777, so this is silent until 1.26 ships; the note goes
+// when 1.26 is the oldest Terminal picadence claims to support
+/**
+ * The terminal's own desktop notification, "OSC 777 ; notify ; title ; body".
+ * Windows Terminal shows it, and clicking it brings the terminal forward, which is
+ * the consensual half of what focusing a tab from outside would be.
+ */
+export function notifySequence(state, label) {
+  const body = notifyBody(state, label);
+  if (!body) {
+    return "";
+  }
+
+  return `\u001b]777;notify;picadence;${body}\u0007`;
+}
+
 export function initialState() {
   return { state: "idle", detail: undefined, runActive: false, outcome: undefined };
 }
@@ -302,6 +353,17 @@ export default function picadence(pi) {
         process.stdout.write(tabProgressSequence(current.state));
       } catch {
         // Same.
+      }
+    }
+
+    if (wantsNotification()) {
+      const note = notifySequence(current.state, facts.name || facts.folder);
+      if (note) {
+        try {
+          process.stdout.write(note);
+        } catch {
+          // Same.
+        }
       }
     }
   };

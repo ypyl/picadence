@@ -66,6 +66,19 @@ Set it in the environment pi starts in, not inside pi. If you also turn on pi's
 own `terminal.showTerminalProgress`, the two write to the same channel and take
 turns; leave one of them off.
 
+A session that stops to wait for you, finishes, or fails also asks the terminal for
+a notification, with `OSC 777`. Windows Terminal shows it once the profile allows
+it, and clicking it brings that terminal forward. That arrived in Terminal 1.26 and
+is **off by default**:
+
+```jsonc
+// settings.json, in the profile pi runs under
+"compatibility": { "allowOSC777": true }
+```
+
+`PICADENCE_NOTIFY=0` turns the request off. An older terminal ignores the sequence,
+which is why this is safe to ship before 1.26 is everywhere.
+
 Two Terminal behaviours can override the title, and neither is ours to fix: a tab
 you rename by hand stops following the title the process sets, and a shell prompt
 that sets its own title can overwrite ours between turns.

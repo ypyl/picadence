@@ -31,6 +31,19 @@ Rules:
 - With the panel open on a 125% display: 16.3 MB working set and 4.6 MB private,
   2026-11-20. The panel is 320x320 DIPs at scale 1.25, so the larger surface is
   the cost, not a leak. Idle with the panel closed stays near the row below.
+- Windows Terminal on this machine is 1.25.3131.0, 2026-11-23. That version has
+  `wt focus-tab -t <index>` (verified: exit 0) and ignores `OSC 777`. Support for
+  OSC 777 and for bell-as-notification arrived in 1.26.2734.0, both **off by
+  default**, behind the profile settings `compatibility.allowOSC777` and
+  `bellStyle: notification`.
+- There is no supported way for a process outside a tab to focus that tab, and
+  none is planned: microsoft/terminal#19783 was closed as not planned, and PR
+  #19784, which implemented `wt focus-tab --session <WT_SESSION>`, was rejected on
+  2026-01-26 because focus-stealing sets a precedent the platform will not set.
+  What a session gets from Terminal is `WT_SESSION` and `WT_PROFILE_ID`, and
+  nothing that maps them to a window or a tab index. UIA can select a tab by its
+  title and is what every third-party tool does; it is unsupported and fragile
+  because titles change, repeat, and get renamed.
 - A running tray locks the executable it was started from, so a build fails with
   `MSB3027 could not copy ... Picadence.exe` while it runs. Stop the process before
   `dotnet build` or `scripts/verify.sh`; restart it afterwards. Evident every time

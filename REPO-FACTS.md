@@ -44,6 +44,11 @@ Rules:
   nothing that maps them to a window or a tab index. UIA can select a tab by its
   title and is what every third-party tool does; it is unsupported and fragile
   because titles change, repeat, and get renamed.
+- A pid is not an identity. On 2026-11-23 a `folio` row stayed in the panel for
+  eleven hours after its tab closed: `OpenProcess(0x1000, false, 29240)` returned a
+  handle, while `Get-Process -Id 29240` found nothing, because Windows had given the
+  number to another process. Liveness is now "the process started no later than the
+  state file it wrote"; `GetProcessTimes` on the same handle answers it.
 - A running tray locks the executable it was started from, so a build fails with
   `MSB3027 could not copy ... Picadence.exe` while it runs. Stop the process before
   `dotnet build` or `scripts/verify.sh`; restart it afterwards. Evident every time

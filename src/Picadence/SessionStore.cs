@@ -6,7 +6,7 @@
 // and reused until the file's length or write time moves.
 namespace Picadence;
 
-public sealed class SessionStore(string directory, Func<int, bool> isAlive)
+public sealed class SessionStore(string directory, Func<int, DateTime, bool> isAlive)
 {
     /// <summary>
     /// A state file is a few hundred bytes. Anything larger is not one, and
@@ -37,6 +37,14 @@ public sealed class SessionStore(string directory, Func<int, bool> isAlive)
     /// an ended process is removed on the way past, which is the only write the
     /// tray performs here.
     /// </summary>
+    /// <summary>
+    /// True when a process that started at <paramref name="createdUtc"/> could be the
+    /// one that wrote a state file at <paramref name="writtenUtc"/>. A process cannot
+    /// write a file before it starts, so a later start means the pid was reused.
+    /// </summary>
+    public static bool StartedBefore(DateTime createdUtc, DateTime writtenUtc) =>
+        createdUtc <= writtenUtc.AddSeconds(2);
+
     public IReadOnlyList<AgentSession> ReadAll(DateTimeOffset now)
     {
         if (!System.IO.Directory.Exists(Directory))
@@ -51,13 +59,6 @@ public sealed class SessionStore(string directory, Func<int, bool> isAlive)
             var name = Path.GetFileName(path);
             if (!SessionRef.TryParse(name, out var reference))
             {
-                continue;
-            }
-
-            if (!isAlive(reference.Pid))
-            {
-                Remove(path);
-                _parsed.Remove(name);
                 continue;
             }
 
@@ -77,6 +78,15 @@ public sealed class SessionStore(string directory, Func<int, bool> isAlive)
             }
             catch (UnauthorizedAccessException)
             {
+                continue;
+            }
+
+            // The write time goes with the question: a process holding a reused pid
+            // started after this file was written, so it cannot be this session.
+            if (!isAlive(reference.Pid, writeTimeUtc))
+            {
+                Remove(path);
+                _parsed.Remove(name);
                 continue;
             }
 

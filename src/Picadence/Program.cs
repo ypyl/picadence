@@ -17,7 +17,7 @@ internal static class Program
     private static nint _window;
     private static Native.NotifyIconData _icon;
     private static readonly Dictionary<AgentState, nint> Icons = [];
-    private static readonly SessionStore Store = new(Paths.Agents, IsProcessAlive);
+    private static readonly SessionStore Store = new(Paths.Agents, IsSessionAlive);
     private static readonly ScheduleStore Schedules = new(Paths.Schedules);
 
     private static readonly PinStore Pins = new(Paths.Pins);
@@ -130,8 +130,12 @@ internal static class Program
         Panel.Update(_sessions, _armed, now, _kept);
     }
 
-    /// <summary>A process id is alive when it can still be opened for a query.</summary>
-    private static bool IsProcessAlive(int pid)
+    /// <summary>
+    /// Whether the process holding this id is the session that wrote the state file.
+    /// A pid that can be opened is not enough: Windows hands dead numbers out again,
+    /// and a reused one outlives the session it never belonged to.
+    /// </summary>
+    private static bool IsSessionAlive(int pid, DateTime writtenUtc)
     {
         if (pid <= 0)
         {
@@ -144,8 +148,17 @@ internal static class Program
             return false;
         }
 
-        Native.CloseHandle(handle);
-        return true;
+        try
+        {
+            // A process whose start time cannot be read is assumed to be the session:
+            // showing a stale row is the lesser fault.
+            return !Native.GetProcessTimes(handle, out var creation, out _, out _, out _)
+                || SessionStore.StartedBefore(creation.ToUtc(), writtenUtc);
+        }
+        finally
+        {
+            Native.CloseHandle(handle);
+        }
     }
 
     /// <summary>

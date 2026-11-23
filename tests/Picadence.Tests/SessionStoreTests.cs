@@ -38,7 +38,7 @@ public sealed class SessionStoreTests : IDisposable
         var livePath = Path.Combine(_directory, liveFile);
         var before = File.ReadAllText(livePath);
 
-        var store = new SessionStore(_directory, pid => pid == 100);
+        var store = new SessionStore(_directory, (pid, _) => pid == 100);
         var sessions = store.ReadAll(Now);
 
         var only = Assert.Single(sessions);
@@ -56,7 +56,7 @@ public sealed class SessionStoreTests : IDisposable
     {
         var name = WriteFile(500, "working");
         var path = Path.Combine(_directory, name);
-        var store = new SessionStore(_directory, _ => true);
+        var store = new SessionStore(_directory, (_, _) => true);
 
         var first = Assert.Single(store.ReadAll(Now));
         var second = Assert.Single(store.ReadAll(Now.AddSeconds(1)));
@@ -85,7 +85,7 @@ public sealed class SessionStoreTests : IDisposable
         File.WriteAllText(Path.Combine(_directory, name), "{ this is not json");
         File.WriteAllText(Path.Combine(_directory, "not-a-session.json"), "{}");
 
-        var store = new SessionStore(_directory, _ => true);
+        var store = new SessionStore(_directory, (_, _) => true);
 
         Assert.Empty(store.ReadAll(Now));
     }
@@ -100,7 +100,7 @@ public sealed class SessionStoreTests : IDisposable
         var json = "{\"state\":\"working\",\"detail\":\"" + padding + "\"}";
         File.WriteAllText(Path.Combine(_directory, name), json);
 
-        var store = new SessionStore(_directory, _ => true);
+        var store = new SessionStore(_directory, (_, _) => true);
 
         Assert.Empty(store.ReadAll(Now));
     }
@@ -109,8 +109,80 @@ public sealed class SessionStoreTests : IDisposable
     public void A_missing_directory_reads_as_nothing()
     {
         var missing = Path.Combine(_directory, "absent");
-        var store = new SessionStore(missing, _ => true);
+        var store = new SessionStore(missing, (_, _) => true);
 
         Assert.Empty(store.ReadAll(Now));
+    }
+}
+
+public class StalePidTests : IDisposable
+{
+    private readonly string _directory = Path.Combine(
+        Path.GetTempPath(), "picadence-stale-" + Guid.NewGuid().ToString("N"));
+
+    public void Dispose()
+    {
+        try
+        {
+            Directory.Delete(_directory, recursive: true);
+        }
+        catch (IOException)
+        {
+            // A leaked temp folder is not a test failure.
+        }
+    }
+
+    private string Write(int pid, string sessionId)
+    {
+        Directory.CreateDirectory(_directory);
+        var path = Path.Combine(_directory, $"{pid}-{sessionId}.json");
+        File.WriteAllText(
+            path,
+            "{\"pid\":" + pid + ",\"sessionId\":\"" + sessionId +
+            "\",\"folder\":\"folio\",\"state\":\"done\",\"updatedAt\":\"2026-11-23T09:15:20Z\"}");
+        return path;
+    }
+
+    [Fact(DisplayName = "a reused process id is not a live session")]
+    public void A_reused_process_id_is_not_a_live_session()
+    {
+        // Windows gave this number to a process that started long after the session
+        // wrote its file, so that process cannot be the session.
+        var path = Write(29240, "01a1fe23-73f9-76de-ab0c-d28fa6358e3f");
+        var written = File.GetLastWriteTimeUtc(path);
+        var reused = written.AddHours(2);
+
+        var store = new SessionStore(
+            _directory,
+            (_, fileWritten) => SessionStore.StartedBefore(reused, fileWritten));
+
+        Assert.Empty(store.ReadAll(DateTimeOffset.UtcNow));
+        Assert.False(File.Exists(path), "the state a dead session left behind is removed");
+    }
+
+    [Fact(DisplayName = "a session that started before its file is shown")]
+    public void A_session_that_started_before_its_file_is_shown()
+    {
+        var path = Write(100, "session-1");
+        var written = File.GetLastWriteTimeUtc(path);
+
+        var store = new SessionStore(
+            _directory,
+            (_, fileWritten) => SessionStore.StartedBefore(written.AddHours(-3), fileWritten));
+
+        Assert.Single(store.ReadAll(DateTimeOffset.UtcNow));
+        Assert.True(File.Exists(path));
+    }
+
+    [Theory(DisplayName = "a process may start a moment after its file is stamped")]
+    [InlineData(-1.0, true)]
+    [InlineData(0.0, true)]
+    [InlineData(1.0, true)]
+    [InlineData(3.0, false)]
+    public void A_process_may_start_a_moment_after_its_file_is_stamped(double offsetSeconds, bool expected)
+    {
+        var written = new DateTime(2026, 11, 23, 9, 15, 20, DateTimeKind.Utc);
+
+        Assert.Equal(expected, SessionStore.StartedBefore(written.AddSeconds(offsetSeconds), written));
     }
 }

@@ -169,6 +169,24 @@ else
   fi
 fi
 
+# A requirement an active change removes still sits in the durable spec until the
+# archive moves it, and its scenario titles stop having tests the moment the code
+# goes. Reading the removals here is what lets a change delete a requirement
+# without the gate calling that a regression.
+removed_titles=""
+while IFS= read -r specfile; do
+  in_removed=0
+  while IFS= read -r line; do
+    case "$line" in
+      "## REMOVED Requirements"*) in_removed=1; continue ;;
+      "## "*) in_removed=0; continue ;;
+    esac
+    if [[ $in_removed -eq 1 && "$line" == "#### Scenario:"* ]]; then
+      removed_titles="$removed_titles${line#\#\#\#\# Scenario:}"$'\n'
+    fi
+  done < "$specfile"
+done < <(find openspec/changes -path 'openspec/changes/archive' -prune -o -type f -path '*/specs/*' -name 'spec.md' -print 2>/dev/null)
+
 # A change's delta spec becomes the durable spec at archive. Rendering detail in
 # it is wrong the moment it is written, and after the gate the only honest repair
 # is a re-gate, so it fails here. A missing test is expected until apply writes
@@ -209,8 +227,14 @@ title_has_test() { grep -qiF -- "$1" "$corpus"; }
 if [[ -n "$durable_titles" ]]; then
   while IFS= read -r title; do
     [[ -z "$title" ]] && continue
+    if [[ -n "$removed_titles" ]] && grep -qxF -- "$title" <<< "$removed_titles"; then
+      continue
+    fi
     title_has_test "$title" || bad "no test contains the scenario title: $title"
   done < <(printf '%s\n' "$durable_titles" | sort -u)
+  if [[ -n "$removed_titles" ]]; then
+    ok "scenario titles of requirements an active change removes are not required"
+  fi
   if [[ -z "$duplicates" ]] && ! printf '%s\n' "${failures[@]:-}" | grep -q 'scenario title'; then
     ok "$(printf '%s\n' "$durable_titles" | grep -c .) scenario titles have a test"
   fi

@@ -5,6 +5,10 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- A session with its own name shows it on its row, under the folder, before its
+  state. A session named after its folder is not made to say it twice.
+
+
 ## picadence-v0.3.0
 
 - A session that needs you, finishes, or fails asks Windows Terminal for a

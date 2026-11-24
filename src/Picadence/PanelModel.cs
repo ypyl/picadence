@@ -51,6 +51,7 @@ public sealed record PanelRow(
     SessionRef Reference,
     AgentState State,
     string Folder,
+    string? Name,
     string StateWord,
     string Detail,
     string Age,
@@ -314,6 +315,7 @@ public static class PanelModel
                 session.Reference,
                 session.State,
                 session.Folder,
+                NameOf(session.Name, session.Folder),
                 session.State.Describe(),
                 session.Detail ?? string.Empty,
                 Age.Format(now - session.UpdatedAt),
@@ -340,6 +342,7 @@ public static class PanelModel
                 new SessionRef(0, entry.Pin.SessionId),
                 AgentState.Idle,
                 Restart.Leaf(entry.Pin.Folder),
+                NameOf(entry.Pin.Name, Restart.Leaf(entry.Pin.Folder)),
                 "not running",
                 entry.Plan.Note,
                 Age.Format(now - entry.Pin.KeptAt),
@@ -468,6 +471,21 @@ public static class PanelModel
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The session's own name, when it has one and when it is not simply the folder
+    /// again: a row that repeats itself spends a line saying nothing.
+    /// </summary>
+    public static string? NameOf(string? name, string folder)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        var trimmed = name.Trim();
+        return string.Equals(trimmed, folder, StringComparison.OrdinalIgnoreCase) ? null : trimmed;
     }
 
     /// <summary>Where the start control sits: immediately left of the pin.</summary>

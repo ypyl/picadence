@@ -838,3 +838,52 @@ public class PanelPiHalfTests
         Assert.Single(layout.Rows);
     }
 }
+
+public class PanelNameTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 11, 24, 0, 10, 0, TimeSpan.Zero);
+
+    private static AgentSession Session(string folder, string? name) =>
+        new(new SessionRef(1, "session-1"), folder, name, null, AgentState.Done, null, Now);
+
+    [Fact(DisplayName = "a row carries the session's own name when it has one")]
+    public void A_row_carries_the_sessions_own_name_when_it_has_one()
+    {
+        var named = Assert.Single(PanelModel.Build([Session("yauhenpylgithubio", "Adopting Aspire research")], Now).Rows);
+        var plain = Assert.Single(PanelModel.Build([Session("trayclaw", null)], Now).Rows);
+
+        Assert.Equal("yauhenpylgithubio", named.Folder);
+        Assert.Equal("Adopting Aspire research", named.Name);
+        Assert.Null(plain.Name);
+    }
+
+    [Fact(DisplayName = "a name that is only the folder again is not repeated")]
+    public void A_name_that_is_only_the_folder_again_is_not_repeated()
+    {
+        // A row that says the same thing twice spends a line on nothing.
+        Assert.Null(PanelModel.NameOf("trayclaw", "trayclaw"));
+        Assert.Null(PanelModel.NameOf("  TRAYCLAW ", "trayclaw"));
+        Assert.Null(PanelModel.NameOf("   ", "trayclaw"));
+        Assert.Null(PanelModel.NameOf(null, "trayclaw"));
+        Assert.Equal("Adopting Aspire research", PanelModel.NameOf(" Adopting Aspire research ", "trayclaw"));
+    }
+
+    [Fact(DisplayName = "a kept row carries the name the pin recorded")]
+    public void A_kept_row_carries_the_name_the_pin_recorded()
+    {
+        var pin = new Pin(
+            "01a2053f-ad54-71e5-ac0b-5e0e9c7a00a6",
+            "Adopting Aspire research",
+            @"C:\Users\me\yauhenpylgithubio",
+            null,
+            Now.AddHours(-2));
+        var kept = new KeptSession(
+            pin,
+            new RestartPlan(RestartRefusal.NoConversation, null, "the conversation is gone"));
+
+        var row = Assert.Single(PanelModel.Build([], Now, kept: [kept]).Rows);
+
+        Assert.Equal("yauhenpylgithubio", row.Folder);
+        Assert.Equal("Adopting Aspire research", row.Name);
+    }
+}

@@ -113,3 +113,47 @@ public class PinStoreTests : IDisposable
         Assert.Empty(new PinStore(_directory).ReadAll());
     }
 }
+
+public class PinFollowTests
+{
+    private static readonly DateTimeOffset Kept = new(2026, 11, 24, 0, 20, 0, TimeSpan.Zero);
+
+    private static Pin Pin(string? name = null, string folder = @"C:\Users\me\docs-site") =>
+        new("01a2053f-ad54-71e5-ac0b-5e0e9c7a00a6", name, folder, null, Kept);
+
+    private static AgentSession Session(string? name, string? cwd = @"C:\Users\me\docs-site") =>
+        new(new SessionRef(1, "01a2053f-ad54-71e5-ac0b-5e0e9c7a00a6"), "docs-site", name, null,
+            AgentState.Done, null, Kept)
+        { Cwd = cwd };
+
+    [Fact(DisplayName = "a pin learns the name its session took after it was kept")]
+    public void A_pin_learns_the_name_its_session_took_after_it_was_kept()
+    {
+        // Pinned before the session had a name, renamed while it ran, tab closed: the
+        // kept row has to show what the session became, not what it was.
+        var followed = Pin().Follow(Session("Adopting Aspire research"));
+
+        Assert.NotNull(followed);
+        Assert.Equal("Adopting Aspire research", followed.Name);
+    }
+
+    [Fact(DisplayName = "a pin that already agrees is not rewritten")]
+    public void A_pin_that_already_agrees_is_not_rewritten()
+    {
+        Assert.Null(Pin("Adopting Aspire research").Follow(Session("Adopting Aspire research")));
+        Assert.Null(Pin(null).Follow(Session(null)));
+
+        // Case and a trailing slash are not a change.
+        Assert.Null(Pin("x", @"C:\Users\me\docs-site").Follow(Session("x", @"C:\Users\me\docs-site\")));
+    }
+
+    [Fact(DisplayName = "a session without a folder of its own keeps the pin's")]
+    public void A_session_without_a_folder_of_its_own_keeps_the_pins()
+    {
+        var followed = Pin().Follow(Session("named", cwd: null));
+
+        Assert.NotNull(followed);
+        Assert.Equal(@"C:\Users\me\docs-site", followed.Folder);
+        Assert.Equal("named", followed.Name);
+    }
+}

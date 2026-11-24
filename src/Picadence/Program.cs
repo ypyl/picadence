@@ -72,12 +72,47 @@ internal static class Program
 
         // The kept list is read before the tick, so a restart that just happened
         // is already visible as a live session on the same pass.
-        var running = new HashSet<string>(
-            _sessions.Select(session => session.Reference.SessionId), StringComparer.Ordinal);
+        var live = new Dictionary<string, AgentSession>(StringComparer.Ordinal);
+        foreach (var session in _sessions)
+        {
+            live.TryAdd(session.Reference.SessionId, session);
+        }
+
+        // A pin follows the session it names: a session can be renamed while it runs,
+        // and the pin is what its row falls back to once the tab closes.
+        var pins = new List<Pin>();
+        foreach (var pin in Pins.ReadAll())
+        {
+            var followed = live.TryGetValue(pin.SessionId, out var session) ? pin.Follow(session) : null;
+            if (followed is null)
+            {
+                pins.Add(pin);
+                continue;
+            }
+
+            pins.Add(followed);
+            try
+            {
+                Pins.Write(followed);
+            }
+            catch (IOException)
+            {
+                // A pin that cannot be written is corrected on the next tick.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Same.
+            }
+            catch (ArgumentException)
+            {
+                // A record that cannot be rewritten keeps what it has.
+            }
+        }
+
+        var running = new HashSet<string>(live.Keys, StringComparer.Ordinal);
         _kept =
         [
-            .. Pins.ReadAll()
-                .Select(pin => new KeptSession(pin, Restart.View(pin, running.Contains(pin.SessionId)))),
+            .. pins.Select(pin => new KeptSession(pin, Restart.View(pin, running.Contains(pin.SessionId)))),
         ];
 
         var tick = SchedulePlan.Plan(

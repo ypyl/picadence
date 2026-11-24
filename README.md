@@ -29,6 +29,10 @@ it changed, the colour of that state, and two small controls.
 
 - The **star** keeps a session, so its row survives the tab: an outline star
   for one that is not kept, a solid star for one that is.
+
+A session that has a name of its own shows it on the second line, before its state:
+`Adopting Aspire research · done`. A session named after its folder anyway says it
+once, not twice.
 - The **play** control appears on a kept row that is not running, and opens it
   again.
 

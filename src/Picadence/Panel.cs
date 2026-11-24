@@ -715,10 +715,17 @@ internal static class Panel
                 14, Native.FW_NORMAL, PanelTheme.PrimaryText,
                 Native.DT_LEFT | Native.DT_SINGLELINE | Native.DT_END_ELLIPSIS);
 
+            // The second line is the session's own name when it has one, then its
+            // state, then the cadence, because that is the order a person reads them.
             var state = string.IsNullOrEmpty(row.Detail) ? row.StateWord : $"{row.StateWord} ({row.Detail})";
             if (row.Schedule is { Length: > 0 } schedule)
             {
                 state = $"{state} · {schedule}";
+            }
+
+            if (row.Name is { Length: > 0 } name)
+            {
+                state = $"{name} · {state}";
             }
 
             Text(dc, state, new DipRect(textLeft, row.Bounds.Y + 25, textWidth, 16),

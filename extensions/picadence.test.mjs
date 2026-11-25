@@ -498,3 +498,66 @@ test("the state file says when its process started", () => {
   assert.equal(processStartedAt(now, NaN), "2026-11-23T09:15:20.000Z");
   assert.equal(processStartedAt(now, undefined), "2026-11-23T09:15:20.000Z");
 });
+
+test("a clock correction does not move the start it reports", async () => {
+  const localAppData = fs.mkdtempSync(path.join(os.tmpdir(), "picadence-state-"));
+  const previous = process.env.LOCALAPPDATA;
+  const saved = {
+    PICADENCE_TAB_PROGRESS: process.env.PICADENCE_TAB_PROGRESS,
+    PICADENCE_NOTIFY: process.env.PICADENCE_NOTIFY,
+  };
+  process.env.LOCALAPPDATA = localAppData;
+  process.env.PICADENCE_TAB_PROGRESS = "0";
+  process.env.PICADENCE_NOTIFY = "0";
+  const realNow = Date.now;
+
+  try {
+    const handlers = new Map();
+    picadence({
+      on(type, handler) {
+        const list = handlers.get(type) ?? [];
+        list.push(handler);
+        handlers.set(type, list);
+      },
+    });
+
+    const ctx = {
+      mode: "tui",
+      model: { id: "test-model" },
+      sessionManager: { getSessionId: () => "abc-123", getSessionName: () => "a session" },
+    };
+
+    for (const handler of handlers.get("session_start")) {
+      await handler({ type: "session_start", reason: "startup" }, ctx);
+    }
+
+    const file = path.join(localAppData, "picadence", "agents", `${process.pid}-abc-123.json`);
+    const started = JSON.parse(fs.readFileSync(file, "utf8")).startedAt;
+    assert.equal(typeof started, "string");
+
+    // The machine corrects its clock a minute forward while pi keeps running. The
+    // process began when it began, so the value the tray compares with the kernel
+    // must not move; if it does, the tray reads a live session as a reused pid.
+    Date.now = () => realNow() + 60_000;
+    for (const handler of handlers.get("agent_start")) {
+      await handler({ type: "agent_start" }, ctx);
+    }
+
+    assert.equal(JSON.parse(fs.readFileSync(file, "utf8")).startedAt, started);
+  } finally {
+    Date.now = realNow;
+    if (previous === undefined) {
+      delete process.env.LOCALAPPDATA;
+    } else {
+      process.env.LOCALAPPDATA = previous;
+    }
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+    fs.rmSync(localAppData, { recursive: true, force: true });
+  }
+});

@@ -5,6 +5,9 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- A running session no longer disappears from the tray when the machine corrects
+  its clock, which used to look like a process id that had been handed out again.
+
 - A session you start by hand a moment before its cadence falls due no longer gets
   a second tab: both ways of starting one hold the same pause.
 - The panel grows to hold the cadence menu, so every cadence and "off" can be

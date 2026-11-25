@@ -18,6 +18,7 @@ say the names of their day; the changelog carries the rename.
 | [0003](0003-a-runner-builds-every-push.md) | A GitHub runner builds and checks every push | Accepted |
 | [0004](0004-the-tray-may-restart-a-session.md) | The tray may restart a session the user kept | Accepted |
 | [0005](0005-a-cadence-may-start-a-kept-session.md) | The tray may start a kept session when its cadence fires | Accepted |
+| [0007](0007-the-gate-carries-the-evidence.md) | The gate carries a change's evidence | Accepted |
 
 ## Adding a decision
 

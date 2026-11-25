@@ -5,6 +5,9 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- The panel grows to hold the cadence menu, so every cadence and "off" can be
+  reached with one session open, and it shrinks again when the menu closes.
+
 - A kept session that is not running shows its cadence and when it will next open
   its tab, instead of saying only that it is not running.
 

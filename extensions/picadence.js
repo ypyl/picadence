@@ -311,6 +311,10 @@ export default function picadence(pi) {
   const pings = pingDirectory();
   let current = initialState();
   let reporting = false;
+  // When this process started, as one value. Uptime is monotonic and the clock is
+  // not, so recomputing this on every write would move it whenever the machine
+  // corrects its clock, and the tray would read a live session as a reused pid.
+  let startedAt;
 
   const stopPolling = () => {
     if (pollTimer) {
@@ -390,7 +394,7 @@ export default function picadence(pi) {
         ...facts,
         state: current.state,
         detail: current.detail,
-        startedAt: processStartedAt(Date.now(), process.uptime()),
+        startedAt,
         updatedAt: new Date().toISOString(),
       });
       showInTab(ctx, facts);
@@ -414,6 +418,7 @@ export default function picadence(pi) {
       }
       sessionId = id;
       fileName = fileNameFor(process.pid, id);
+      startedAt = processStartedAt(Date.now(), process.uptime());
       current = initialState();
       reporting = true;
       flush(ctx);
@@ -457,6 +462,7 @@ export default function picadence(pi) {
       stopPolling();
       reporting = false;
       fileName = undefined;
+      startedAt = undefined;
     }
   });
 }

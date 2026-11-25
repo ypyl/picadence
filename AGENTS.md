@@ -323,7 +323,10 @@ safe.
   change has no delta spec, so its second gate does not exist: one ADR gate,
   one approval block.
 - **L3.** Same as L2, then the rehearsal, the executed rollback, and the
-  reconciliation, gated the same way. Apply only after approval of the evidence.
+  reconciliation, each written and run, gated with `--gate evidence`. Apply only
+  after approval of the evidence. A `skip_specs` L3 has two pages in all: the ADR,
+  then the evidence. The decision to put the evidence on the page is in
+  `adr/0007`.
 
 ### How a gate is presented
 

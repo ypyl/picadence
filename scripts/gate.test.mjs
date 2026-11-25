@@ -317,6 +317,51 @@ test('a single gate shows its artifact and the proposal, nothing else', () => {
   assert.equal(arrange(files, 'adr')[0].kind, 'adr');
 });
 
+test('the rehearsal, the rollback and the reconciliation are artifacts', async () => {
+  const { root, dir } = await fixture('L3');
+  const rehearsal = ['# Rehearsal', '', 'packed, installed, ran', ''].join('\n');
+  await writeFile(path.join(dir, 'rehearsal.md'), rehearsal);
+  await writeFile(path.join(dir, 'rollback.md'), ['# Rollback', '', 'the install that then failed', ''].join('\n'));
+  await writeFile(path.join(dir, 'reconciliation.md'), ['# Reconciliation', '', '| one | one |', ''].join('\n'));
+
+  const { level, gateKind, files } = await collectArtifacts(root, dir);
+  assert.equal(level, 'L3');
+  assert.equal(gateKind, 'adr', 'the decision is still the first gate');
+  assert.equal(files.filter((file) => file.kind === 'evidence').length, 3);
+  assert.equal(
+    files.find((file) => file.label === 'rehearsal.md').sha256,
+    sha256(rehearsal),
+    'the evidence is hashed where it is written',
+  );
+
+  // The evidence gate carries the evidence and the proposal, and nothing else.
+  assert.deepEqual(
+    selectForGate(files, 'evidence').map((file) => file.kind).sort(),
+    ['evidence', 'evidence', 'evidence', 'proposal'],
+  );
+  assert.equal(arrange(files, 'evidence')[0].kind, 'evidence', 'the gated artifact opens first');
+
+  // The page names the gate and the files, and the submission quotes their hashes.
+  const page = renderPage({
+    change: 'demo',
+    revision: 2,
+    level,
+    files: selectForGate(files, 'evidence'),
+    gate: 'evidence',
+  });
+  assert.match(page, /evidence gate/);
+  for (const name of ['rehearsal.md', 'rollback.md', 'reconciliation.md']) {
+    assert.ok(page.includes(name), `${name} is on the page`);
+  }
+
+  const submitted = validateSubmission({ decision: 'approve' }, files);
+  assert.equal(
+    submitted.artifacts.find((artifact) => artifact.path.endsWith('rehearsal.md')).sha256,
+    sha256(rehearsal),
+  );
+  await rm(root, { recursive: true, force: true });
+});
+
 test('a gated page says what is not on it, an everything page does not', async () => {
   const { root, dir } = await fixture();
   const { level, files } = await collectArtifacts(root, dir);

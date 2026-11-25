@@ -234,8 +234,84 @@ Install it once, globally, because it must report from every project you open pi
 in. A session that was already running when you installed it reports nothing
 until pi restarts.
 
-State lands in `%LOCALAPPDATA%\picadence\agents`, one small file per session, and
-is removed when pi exits. Nothing leaves the machine.
+State lands in `%LOCALAPPDATA%\picadence`, one small file per session, and is
+removed when pi exits. Nothing leaves the machine, and **What it writes and
+reads** below lists every file behind that sentence.
+
+## What it writes and reads
+
+Everything picadence keeps sits under `%LOCALAPPDATA%\picadence`, one folder per
+kind of record. Each folder is created when it first has something in it, so
+nothing appears until there is a record to keep.
+
+Written by the pi half:
+
+- **`agents\`** — one file per session, named `<pid>-<session id>.json`, carrying
+  the folder's name and path, the session's own name and model, its state, the tool
+  or the question behind it, when it changed, and the pid together with the time
+  that process started. Removed when pi exits, and by the tray once the process is
+  gone.
+
+Written by the tray:
+
+- **`pins\`** — one file per session you kept, holding what it takes to open that
+  session again in a tab. Removed when you unkeep it.
+- **`schedules\`** — one file per armed session: its cadence, and when that cadence
+  next falls due. Removed when you turn it off.
+- **`pings\`** — one file per wake-up waiting for a session: the words, the time,
+  and the cadence. The pi half claims it by renaming it to
+  `<session id>.json.<pid>.reading`, sends it, and deletes it. A claim left behind
+  by a crash holds words nobody will read, and it is the only file that can.
+
+Nothing here is a log: there is no history of what your sessions did, only what
+they are doing now and what you asked the tray to remember.
+
+Read, never written:
+
+- **`agents\`** — the sessions the panel shows. This is the tray's only input.
+- **`pins\`** and **`schedules\`** — its own records, which it writes as well.
+- **`%USERPROFILE%\.pi\agent\settings.json`**, and `.pi\settings.json` in each
+  folder a session reported — whether pi's packages list picadence, which is how
+  the panel knows the pi half is missing.
+- **`%USERPROFILE%\.pi\agent\sessions`** — file names only, to say whether a kept
+  session still has a conversation. The conversation is never opened.
+- **`%USERPROFILE%\.pi\agent\bin`**, then `PATH` — where `pi` is, to open a kept
+  session in a tab.
+- **`%LOCALAPPDATA%\Microsoft\WindowsApps`**, then `PATH` — where Windows Terminal
+  is, for the same reason.
+
+No registry value, no service, no port, and no network call. The tray starts pi in
+a tab; it never sends anything to a session already running, and it writes nothing
+into pi's own folders, which it only reads.
+
+## Uninstalling
+
+Stop the tray first, with the X in the panel. A running tray holds the exe it was
+started from, and a tool uninstall that meets that lock fails half way: it has
+already moved the folder, and the file it cannot delete is left in
+`.store\.stage`, where the next uninstall no longer looks.
+
+```powershell
+dotnet tool uninstall -g Ypyl.Picadence
+```
+
+That removes the `picadence` command and the copy of the exe in the tool store,
+and nothing else. What stays, and what each one is for:
+
+- **`%LOCALAPPDATA%\picadence`** — everything above, including your kept sessions
+  and armed cadences. It is left alone so a reinstall picks up where you left off.
+  Delete the folder for a clean slate.
+- **The pi half** — the package listed in `%USERPROFILE%\.pi\agent\settings.json`.
+  Take that entry out to stop pi loading it.
+- **A shortcut in your Startup folder**, if you made one. The exe it points at is
+  gone with the tool.
+- **Empty folders in `%USERPROFILE%\.dotnet\tools\.store`** — nothing is in them
+  but the name of a package that is no longer installed.
+
+A winget install has its own uninstall: `winget uninstall Ypyl.Picadence`. A
+release asset has none at all, so delete the file. Both are no different from the
+tool route afterwards: the state folder above is the rest of picadence, and the
+pi half was installed on its own.
 
 ## Build and run
 

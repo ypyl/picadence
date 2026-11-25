@@ -6,6 +6,8 @@ namespace Picadence;
 /// <summary>
 /// One armed session. <paramref name="Name"/> and <paramref name="Folder"/> are a
 /// label for whoever opens the file; nothing decides anything from them.
+/// <paramref name="AnchorDay"/> is the day of the month the user armed, kept so a
+/// month with fewer days moves that one window and not the cadence.
 /// </summary>
 public sealed record Schedule(
     string SessionId,
@@ -14,7 +16,8 @@ public sealed record Schedule(
     Cadence Every,
     DateTimeOffset NextAt,
     DateTimeOffset? LastIssuedAt,
-    int Missed)
+    int Missed,
+    int? AnchorDay = null)
 {
     /// <summary>
     /// The record after a ping is issued at <paramref name="now"/>. The next time
@@ -24,8 +27,8 @@ public sealed record Schedule(
     public Schedule AfterFiring(DateTimeOffset now) => this with
     {
         LastIssuedAt = now,
-        Missed = Every.MissedBetween(NextAt, now),
-        NextAt = Every.Advance(now),
+        Missed = Every.MissedBetween(NextAt, now, AnchorDay),
+        NextAt = Every.Advance(now, AnchorDay),
     };
 
     /// <summary>True when this cadence is due at <paramref name="now"/>.</summary>

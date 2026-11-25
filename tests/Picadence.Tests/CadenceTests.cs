@@ -21,6 +21,22 @@ public class CadenceTests
         Assert.Equal(
             new DateTimeOffset(2026, 4, 30, 9, 0, 0, TimeSpan.Zero),
             Cadence.Monthly.Advance(march));
+
+        // The hop after a short month keeps the armed day, so February's 28th is
+        // not the new day for the rest of the cadence's life.
+        var february = new DateTimeOffset(2026, 2, 28, 9, 0, 0, TimeSpan.Zero);
+        Assert.Equal(
+            new DateTimeOffset(2026, 3, 31, 9, 0, 0, TimeSpan.Zero),
+            Cadence.Monthly.Advance(february, 31));
+
+        // And a leap day comes back on the next leap year rather than settling on
+        // the 28th.
+        Assert.Equal(
+            new DateTimeOffset(2029, 2, 28, 9, 0, 0, TimeSpan.Zero),
+            Cadence.Yearly.Advance(new DateTimeOffset(2028, 2, 29, 9, 0, 0, TimeSpan.Zero), 29));
+        Assert.Equal(
+            new DateTimeOffset(2032, 2, 29, 9, 0, 0, TimeSpan.Zero),
+            Cadence.Yearly.Advance(new DateTimeOffset(2031, 2, 28, 9, 0, 0, TimeSpan.Zero), 29));
     }
 
     [Theory]

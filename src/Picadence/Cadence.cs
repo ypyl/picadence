@@ -77,23 +77,37 @@ public static class CadenceExtensions
     /// <summary>
     /// The moment one cadence after <paramref name="from"/>. Off does not move, so
     /// a caller that forgot to check gets a fixed point rather than a surprise.
+    /// <paramref name="anchorDay"/> is the day of the month the cadence was armed on,
+    /// so a shorter month does not redefine it: the 31st comes back in March.
     /// </summary>
-    public static DateTimeOffset Advance(this Cadence cadence, DateTimeOffset from) => cadence switch
+    public static DateTimeOffset Advance(this Cadence cadence, DateTimeOffset from, int? anchorDay = null) =>
+        cadence switch
+        {
+            Cadence.Every15Minutes => from.AddMinutes(15),
+            Cadence.Hourly => from.AddHours(1),
+            Cadence.Weekly => from.AddDays(7),
+            Cadence.Monthly => OnItsDay(from.AddMonths(1), anchorDay ?? from.Day),
+            Cadence.Yearly => OnItsDay(from.AddYears(1), anchorDay ?? from.Day),
+            _ => from,
+        };
+
+    /// <summary>
+    /// The moved moment on the day asked for, or on the month's last day when the
+    /// month is shorter. Everything but the day comes from the moment that moved.
+    /// </summary>
+    private static DateTimeOffset OnItsDay(DateTimeOffset moved, int day)
     {
-        Cadence.Every15Minutes => from.AddMinutes(15),
-        Cadence.Hourly => from.AddHours(1),
-        Cadence.Weekly => from.AddDays(7),
-        Cadence.Monthly => from.AddMonths(1),
-        Cadence.Yearly => from.AddYears(1),
-        _ => from,
-    };
+        var kept = Math.Min(day, DateTime.DaysInMonth(moved.Year, moved.Month));
+        return moved.AddDays(kept - moved.Day);
+    }
 
     /// <summary>
     /// How many windows fell due after <paramref name="nextAt"/> and before
     /// <paramref name="now"/>. The window about to be served does not count, so a
     /// session that is exactly on time reports nothing missed.
     /// </summary>
-    public static int MissedBetween(this Cadence cadence, DateTimeOffset nextAt, DateTimeOffset now)
+    public static int MissedBetween(
+        this Cadence cadence, DateTimeOffset nextAt, DateTimeOffset now, int? anchorDay = null)
     {
         if (cadence == Cadence.Off || now < nextAt)
         {
@@ -101,11 +115,11 @@ public static class CadenceExtensions
         }
 
         var missed = 0;
-        var at = cadence.Advance(nextAt);
+        var at = cadence.Advance(nextAt, anchorDay);
         while (at < now && missed < MaxMissed)
         {
             missed++;
-            at = cadence.Advance(at);
+            at = cadence.Advance(at, anchorDay);
         }
 
         return missed;

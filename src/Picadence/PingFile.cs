@@ -42,7 +42,9 @@ public static class PingFile
             writer.WriteStartObject();
             writer.WriteString("at", ping.At.ToUniversalTime().ToString("O"));
             writer.WriteString("every", ping.Schedule.Every.Key());
-            writer.WriteNumber("missed", ping.Schedule.Every.MissedBetween(ping.Schedule.NextAt, ping.At));
+            writer.WriteNumber(
+                "missed",
+                ping.Schedule.Every.MissedBetween(ping.Schedule.NextAt, ping.At, ping.Schedule.AnchorDay));
             writer.WriteString("prompt", ping.Text);
             writer.WriteEndObject();
         }

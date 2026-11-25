@@ -298,6 +298,20 @@ public class SchedulePlanTests
         Assert.Empty(later.Pings);
     }
 
+    [Fact(DisplayName = "a monthly cadence that fired in february lands on its own day")]
+    public void A_monthly_cadence_that_fired_in_february_lands_on_its_own_day()
+    {
+        // Armed on 31 January: the February window is due on the 28th, and the next
+        // one is the 31st of March, not the 28th for good.
+        var february = new DateTimeOffset(2026, 2, 28, 14, 0, 0, TimeSpan.Zero);
+        var schedule = new Schedule("9f2c-1a", "news-watch", "triage", Cadence.Monthly, february, null, 0, AnchorDay: 31);
+
+        var tick = SchedulePlan.Plan([Session("9f2c-1a", AgentState.Idle)], [schedule], february);
+
+        Assert.Single(tick.Pings);
+        Assert.Equal(new DateTimeOffset(2026, 3, 31, 14, 0, 0, TimeSpan.Zero), Assert.Single(tick.Written).NextAt);
+    }
+
     [Fact(DisplayName = "a kept session's cadence is still in the view")]
     public void A_kept_sessions_cadence_is_still_in_the_view()
     {

@@ -136,8 +136,7 @@ internal static class Program
 
             if (ping is { Wake: Wake.StartAndSend, Launch: { } launch })
             {
-                StartedAt[ping.Schedule.SessionId] = now;
-                Start(launch);
+                StartAndRemember(ping.Schedule.SessionId, launch);
             }
         }
 
@@ -218,6 +217,23 @@ internal static class Program
     }
 
     /// <summary>
+    /// Starts the one program the tray may start, and records that it did, so a
+    /// cadence that falls due while that tab is still booting waits instead of
+    /// opening a second one. The record is kept only when a process really started: a
+    /// failed start must leave the window to be retried.
+    /// </summary>
+    private static bool StartAndRemember(string sessionId, Launch launch)
+    {
+        if (!Start(launch))
+        {
+            return false;
+        }
+
+        StartedAt[sessionId] = DateTimeOffset.Now;
+        return true;
+    }
+
+    /// <summary>
     /// Starts the one program the tray may start: a Windows Terminal tab that runs
     /// pi on a kept session's conversation. It does not wait, and it holds nothing
     /// of the process afterwards, because the tab outlives this call.
@@ -291,7 +307,7 @@ internal static class Program
         }
 
         Panel.Register(instance);
-        Panel.Launcher = Start;
+        Panel.Launcher = StartAndRemember;
 
         _window = Native.CreateWindowExW(
             0, windowClass.lpszClassName, "picadence", Native.WS_POPUP,

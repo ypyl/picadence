@@ -5,6 +5,8 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- A session you start by hand a moment before its cadence falls due no longer gets
+  a second tab: both ways of starting one hold the same pause.
 - The panel grows to hold the cadence menu, so every cadence and "off" can be
   reached with one session open, and it shrinks again when the menu closes.
 

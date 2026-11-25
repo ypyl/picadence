@@ -654,9 +654,15 @@ public enum PanelInput
 /// <summary>The whole opening and closing rule, in one function.</summary>
 public static class PanelController
 {
-    public static bool After(bool isOpen, PanelInput input) => input switch
+    /// <summary>
+    /// Whether the panel is open after an input. <paramref name="justClosedItself"/>
+    /// says the panel hid a moment ago because the focus went elsewhere, which is what
+    /// the shell does just before it delivers the click that closed it: that click is
+    /// the close, so it does not open the panel again.
+    /// </summary>
+    public static bool After(bool isOpen, PanelInput input, bool justClosedItself = false) => input switch
     {
-        PanelInput.IconClicked => !isOpen,
+        PanelInput.IconClicked => !isOpen && !justClosedItself,
         PanelInput.RowClicked => isOpen,
         _ => false,
     };

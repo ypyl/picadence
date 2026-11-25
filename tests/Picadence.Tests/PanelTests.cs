@@ -252,6 +252,20 @@ public class PanelControllerTests
         Assert.False(PanelController.After(opened, PanelInput.IconClicked));
     }
 
+    [Fact(DisplayName = "the click that closed the panel does not reopen it")]
+    public void The_click_that_closed_the_panel_does_not_reopen_it()
+    {
+        // The shell takes the focus first, so the panel has hidden itself by the time
+        // the tray delivers the click. That click is the close and not an open, whether
+        // the panel had one message or two to get there.
+        Assert.False(PanelController.After(false, PanelInput.IconClicked, justClosedItself: true));
+        Assert.False(PanelController.After(true, PanelInput.IconClicked, justClosedItself: true));
+
+        // A click later than the guard opens it, and every other rule is unchanged.
+        Assert.True(PanelController.After(false, PanelInput.IconClicked, justClosedItself: false));
+        Assert.False(PanelController.After(true, PanelInput.IconClicked));
+    }
+
     [Fact(DisplayName = "losing focus closes the panel")]
     public void Losing_focus_closes_the_panel()
     {

@@ -546,6 +546,20 @@ public class PanelKeptTests
         Assert.Equal(PanelRowKind.Kept, withLive.Rows[1].Kind);
     }
 
+    [Fact(DisplayName = "a kept row says when its cadence wakes it")]
+    public void A_kept_row_says_when_its_cadence_wakes_it()
+    {
+        var schedule = new Schedule(
+            KeptId, "docs-site", @"C:\Users\me\docs-site", Cadence.Hourly, Now.AddMinutes(24), null, 0);
+        var armed = new Dictionary<SessionRef, Schedule> { [new SessionRef(0, KeptId)] = schedule };
+
+        var row = Assert.Single(PanelModel.Build([], Now, armed, kept: [Kept(Pin())]).Rows);
+
+        Assert.Equal(PanelRowKind.Kept, row.Kind);
+        Assert.Equal("not running", row.StateWord);
+        Assert.Equal("every hour, next in 24m", row.Schedule);
+    }
+
     [Fact(DisplayName = "a kept session that is running is one row, not two")]
     public void A_kept_session_that_is_running_is_one_row_not_two()
     {

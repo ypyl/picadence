@@ -297,4 +297,25 @@ public class SchedulePlanTests
         var later = SchedulePlan.Plan([], [written], Now.AddMinutes(5), kept);
         Assert.Empty(later.Pings);
     }
+
+    [Fact(DisplayName = "a kept session's cadence is still in the view")]
+    public void A_kept_sessions_cadence_is_still_in_the_view()
+    {
+        // Not due: nothing fires, and the row still has a time to read.
+        var waiting = SchedulePlan.Plan(
+            [], [Armed("9f2c-1a", Cadence.Hourly, Now.AddMinutes(24))], Now, [Kept("9f2c-1a")]);
+
+        Assert.Empty(waiting.Pings);
+        Assert.True(waiting.View.TryGetValue(new SessionRef(0, "9f2c-1a"), out var shown));
+        Assert.Equal(Now.AddMinutes(24), shown.NextAt);
+        Assert.Equal(Cadence.Hourly, shown.Every);
+
+        // Due: the row reads the record the tray wrote, not the window that passed.
+        var due = SchedulePlan.Plan(
+            [], [Armed("9f2c-1a", Cadence.Hourly, Now.AddHours(-1))], Now, [Kept("9f2c-1a")]);
+
+        Assert.Single(due.Pings);
+        Assert.True(due.View.TryGetValue(new SessionRef(0, "9f2c-1a"), out var after));
+        Assert.Equal(Now.AddHours(1), after.NextAt);
+    }
 }

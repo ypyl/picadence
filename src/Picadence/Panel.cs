@@ -567,6 +567,7 @@ internal static class Panel
 
     private static void Rebuild()
     {
+        var previous = _layout.Height;
         var next = PanelModel.Build(
             _sessions, _now, _schedules, _flyoutFor, _kept, _scroll, DependenciesHere(), Measure);
         _scroll = next.FirstRow;
@@ -575,6 +576,13 @@ internal static class Panel
         if (next.Flyout is null)
         {
             _flyoutFor = null;
+        }
+
+        // The cadence list can be taller than the panel it covers, and a window
+        // cannot paint outside itself, so the window follows the layout it holds.
+        if (Math.Abs(previous - next.Height) > 0.5)
+        {
+            Place();
         }
 
         Native.InvalidateRect(_window, 0, false);

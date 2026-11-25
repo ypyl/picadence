@@ -19,7 +19,6 @@ public enum PanelHit
     Pin,
     Start,
     Flyout,
-    Autostart,
     Quit,
 }
 
@@ -131,7 +130,7 @@ public sealed class PanelLayout
         {
             if (action.Bounds.Contains(x, y))
             {
-                return action.Action == PanelAction.Quit ? PanelHit.Quit : PanelHit.Autostart;
+                return PanelHit.Quit;
             }
         }
 
@@ -160,16 +159,8 @@ public static class PanelModel
     public const double HeaderHeight = 40;
     public const double RowHeight = 44;
     public const double RowSpacing = 8;
-    /// <summary>A control is a button: Fluent's medium height, with its content inset.</summary>
-    public const double ActionHeight = 32;
-
-    public const double ActionSpacing = 2;
-
     /// <summary>How far the hover fill sits inside the row it belongs to.</summary>
     public const double ActionInset = 2;
-
-    /// <summary>How far the label and the value sit inside the hover fill.</summary>
-    public const double ActionPadding = 12;
 
     /// <summary>
     /// A rough width for text, used only when nobody passed a real measurement. The
@@ -200,9 +191,6 @@ public static class PanelModel
 
     /// <summary>An X, for the control that closes the panel and stops the tray.</summary>
     public const string QuitGlyph = "\uE8BB";
-
-    /// <summary>How wide an icon control's glyph is, and how much room it gets.</summary>
-    public const double IconSize = 12;
 
     /// <summary>The X in the header: a 22 square target, which a mouse can hit.</summary>
     public const double HeaderControl = 22;

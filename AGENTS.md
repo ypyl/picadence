@@ -669,7 +669,9 @@ human, not a guess.
 - Secrets: none, and none planned: both halves exchange local files
 - Environments: one, this machine; agent state lives in %LOCALAPPDATA%/picadence and no server exists
 - OpenSpec CLI: 2.1.0 (the only external tool; check `openspec --version`)
-- Versions: git tags `<product>-v<semver>`, cut at release. No version file.
+- Versions: git tags `<product>-v<semver>`, cut at release. No version file,
+  except `package.json`, whose `version` is the pi package's and moves with the
+  last tag.
 
 What each empty line holds:
 

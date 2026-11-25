@@ -68,7 +68,7 @@ internal static class Program
 
         // The state directory is read first, so a session whose process has ended
         // is already gone by the time a ping could be written for it.
-        _sessions = Store.ReadAll(now);
+        _sessions = Store.ReadAll();
 
         // The kept list is read before the tick, so a restart that just happened
         // is already visible as a live session on the same pass.
@@ -152,6 +152,17 @@ internal static class Program
         }
 
         _armed = tick.View;
+
+        // A stamp is what keeps one window from opening two tabs while the first
+        // is still writing its state, so it is dead once the grace has passed.
+        // Keeping it would be one entry per session the tray has ever started.
+        foreach (var id in StartedAt
+                     .Where(pair => now - pair.Value >= SchedulePlan.StartGrace)
+                     .Select(pair => pair.Key)
+                     .ToList())
+        {
+            StartedAt.Remove(id);
+        }
 
         var state = AgentStatus.Aggregate(_sessions);
         if (state != _shownState)

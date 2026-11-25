@@ -96,6 +96,10 @@ public static class Restart
     /// points at. A shim goes through cmd.exe, because a batch file is not a
     /// program CreateProcess can start.
     /// </summary>
+    // shortcut: cmd expands %NAME% in this payload, and a command line has no escape
+    // that stops it (%% is expanded again, a caret stays in the path), so a folder or
+    // conversation whose path holds a name in percent signs is opened at the wrong
+    // place; refuse such a pin when a project directory like that turns up
     public static string CommandLine(
         string terminal,
         string title,

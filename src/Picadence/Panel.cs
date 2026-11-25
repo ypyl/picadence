@@ -66,6 +66,16 @@ internal static class Panel
     /// <summary>The moment the layout was built for, so a choice can time its first ping.</summary>
     private static DateTimeOffset _now = DateTimeOffset.Now;
 
+    /// <summary>
+    /// How long after the panel hid itself an icon click still counts as the click
+    /// that closed it, rather than a click that opens it again. The two messages are
+    /// one gesture, so this only has to cover the gap between them.
+    /// </summary>
+    private const long ReopenGuardMilliseconds = 400;
+
+    /// <summary>When the panel last hid itself because something else took the focus.</summary>
+    private static long _closedByFocusAt = -1;
+
     public static unsafe void Register(nint instance)
     {
         var windowClass = CreateWindowClass(
@@ -96,7 +106,10 @@ internal static class Panel
         nint owner,
         IReadOnlyList<KeptSession> kept)
     {
-        if (PanelController.After(IsOpen, PanelInput.IconClicked))
+        var closedItself = _closedByFocusAt >= 0
+            && Environment.TickCount64 - _closedByFocusAt < ReopenGuardMilliseconds;
+
+        if (PanelController.After(IsOpen, PanelInput.IconClicked, closedItself))
         {
             Show(sessions, schedules, now, owner, kept);
         }
@@ -169,6 +182,7 @@ internal static class Panel
         _kept = kept;
         _now = now;
         _flyoutFor = null;
+        _closedByFocusAt = -1;
         _scroll = 0;
         _layout = PanelModel.Build(
             sessions, now, _schedules, kept: _kept, scroll: _scroll,
@@ -276,6 +290,10 @@ internal static class Panel
             case Native.WM_ERASEBKGND:
                 return 1;
             case Native.WM_ACTIVATE when (int)(wParam & 0xFFFF) == Native.WA_INACTIVE:
+                // The click that closes the panel reaches the tray after the shell has
+                // taken the focus, so the panel is already hiding when that click is
+                // handled. Remembering when keeps the close from reopening it.
+                _closedByFocusAt = Environment.TickCount64;
                 Hide();
                 return 0;
             case Native.WM_KEYDOWN when (int)wParam == Native.VK_ESCAPE:

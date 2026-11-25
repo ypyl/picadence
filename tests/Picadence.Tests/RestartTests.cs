@@ -277,7 +277,17 @@ public class RestartTests : IDisposable
             line => line.Contains("Native.CreateProcessW(", StringComparison.Ordinal));
         Assert.Single(
             File.ReadAllLines(Path.Combine(source, "Panel.cs")),
-            line => line.Contains("Launcher(launch)", StringComparison.Ordinal));
+            line => line.Contains("Launcher(row.Reference.SessionId, launch)", StringComparison.Ordinal));
+
+        // A tab started by hand holds the same grace as one a cadence started, so the
+        // start stamp is written where the process is started and nowhere else, and
+        // the start itself has no caller of its own.
+        var program = File.ReadAllLines(Path.Combine(source, "Program.cs"));
+        Assert.Single(program, line => line.Contains("StartedAt[sessionId] =", StringComparison.Ordinal));
+        Assert.DoesNotContain(program, line => line.Trim() == "Start(launch);");
+        Assert.Equal(
+            2,
+            program.Count(line => line.Trim().Contains("StartAndRemember(", StringComparison.Ordinal)));
     }
 
     /// <summary>The folder the solution sits in, found by walking up from the test binary.</summary>

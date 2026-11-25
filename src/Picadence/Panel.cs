@@ -56,8 +56,12 @@ internal static class Panel
 
     private static IReadOnlyList<KeptSession> _kept = [];
 
-    /// <summary>What starts a restart. The tray sets this; a test records it.</summary>
-    internal static Func<Launch, bool> Launcher = _ => false;
+    /// <summary>
+    /// What starts a restart, and what remembers it. The tray sets this; a test could
+    /// record it. The session id travels with the plan because the start is the only
+    /// place that knows every tab the tray opens, however it was asked for.
+    /// </summary>
+    internal static Func<string, Launch, bool> Launcher = (_, _) => false;
 
     /// <summary>The moment the layout was built for, so a choice can time its first ping.</summary>
     private static DateTimeOffset _now = DateTimeOffset.Now;
@@ -548,7 +552,7 @@ internal static class Panel
         var plan = Restart.View(pin, running: false);
         if (plan.Launch is { } launch)
         {
-            Launcher(launch);
+            Launcher(row.Reference.SessionId, launch);
         }
     }
 

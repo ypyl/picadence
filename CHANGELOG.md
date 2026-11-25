@@ -10,18 +10,14 @@ are in `AGENTS.md` under **Versions and changelog**.
   next leap year.
 - A running session no longer disappears from the tray when the machine corrects
   its clock, which used to look like a process id that had been handed out again.
-
 - A session you start by hand a moment before its cadence falls due no longer gets
   a second tab: both ways of starting one hold the same pause.
 - The panel grows to hold the cadence menu, so every cadence and "off" can be
   reached with one session open, and it shrinks again when the menu closes.
-
 - A kept session that is not running shows its cadence and when it will next open
   its tab, instead of saying only that it is not running.
-
 - A session with its own name shows it on its row, under the folder, before its
   state. A session named after its folder is not made to say it twice.
-
 
 ## picadence-v0.3.0
 

@@ -5,6 +5,9 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- A monthly or yearly cadence keeps its day of the month, so one armed on the 31st
+  fires on the 31st again once February is past, and a leap day comes back in the
+  next leap year.
 - A running session no longer disappears from the tray when the machine corrects
   its clock, which used to look like a process id that had been handed out again.
 

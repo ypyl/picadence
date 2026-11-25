@@ -82,7 +82,7 @@ public static class SchedulePlan
 
             if (current.IsDue(now) && IsFree(session.State))
             {
-                var missed = current.Every.MissedBetween(current.NextAt, now);
+                var missed = current.Every.MissedBetween(current.NextAt, now, current.AnchorDay);
                 pings.Add(new Ping(current, Text(current, missed, now), now, Wake.Send, null));
                 current = current.AfterFiring(now);
                 written[current.SessionId] = current;
@@ -129,7 +129,7 @@ public static class SchedulePlan
             return schedule;
         }
 
-        var missed = schedule.Every.MissedBetween(schedule.NextAt, now);
+        var missed = schedule.Every.MissedBetween(schedule.NextAt, now, schedule.AnchorDay);
         if (entry.Plan is { CanRestart: true, Launch: { } launch })
         {
             pings.Add(new Ping(

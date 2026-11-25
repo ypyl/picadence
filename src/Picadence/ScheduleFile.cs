@@ -52,6 +52,7 @@ public static class ScheduleFile
                 return false;
             }
 
+            var anchorDay = Integer(root, "anchorDay");
             schedule = new Schedule(
                 sessionId,
                 Truncate(Text(root, "name")),
@@ -59,7 +60,8 @@ public static class ScheduleFile
                 every,
                 nextAt,
                 Timestamp(root, "lastIssuedAt"),
-                Integer(root, "missed"));
+                Integer(root, "missed"),
+                anchorDay is >= 1 and <= 31 ? anchorDay : null);
             return true;
         }
     }
@@ -89,6 +91,11 @@ public static class ScheduleFile
             }
 
             writer.WriteNumber("missed", schedule.Missed);
+            if (schedule.AnchorDay is { } anchorDay)
+            {
+                writer.WriteNumber("anchorDay", anchorDay);
+            }
+
             writer.WriteEndObject();
         }
 

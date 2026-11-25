@@ -47,6 +47,27 @@ public class ScheduleStoreTests : IDisposable
     }
 
     [Fact]
+    public void The_day_of_the_month_survives_the_round_trip_to_disk()
+    {
+        var store = new ScheduleStore(Schedules);
+        var schedule = Armed("9f2c-1a", Cadence.Monthly, Now) with { AnchorDay = 31 };
+
+        store.Write(schedule);
+        var read = Assert.Single(store.ReadAll());
+
+        Assert.Equal(31, read.AnchorDay);
+        Assert.Equal(schedule, read);
+
+        // A record written before the field existed reads as it always did.
+        System.IO.Directory.CreateDirectory(Schedules);
+        File.WriteAllText(
+            Path.Combine(Schedules, "old-2b.json"),
+            "{\"sessionId\":\"old-2b\",\"folder\":\"triage\",\"every\":\"1mo\",\"nextAt\":\"2026-11-21T14:03:00Z\",\"missed\":0}");
+
+        Assert.Null(Assert.Single(store.ReadAll(), entry => entry.SessionId == "old-2b").AnchorDay);
+    }
+
+    [Fact]
     public void An_unreadable_or_oversized_file_is_ignored()
     {
         System.IO.Directory.CreateDirectory(Schedules);

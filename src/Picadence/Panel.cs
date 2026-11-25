@@ -488,7 +488,8 @@ internal static class Panel
                 cadence,
                 NextAt: cadence.Advance(_now),
                 LastIssuedAt: null,
-                Missed: 0);
+                Missed: 0,
+                AnchorDay: _now.Day);
             store.Write(schedule);
             _schedules[row.Reference] = schedule;
         }

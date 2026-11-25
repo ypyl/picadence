@@ -101,7 +101,7 @@ moves. If a version of picadence before 0.3 registered itself, it did so under
 value there once and use the shortcut instead.
 
 The .NET tool route is not the one to start at login. Its `picadence` command is a
-batch file, so a shortcut to it shows a console window for as long as the tray runs,
+batch file, so a shortcut to it flashes a console window before the tray appears,
 and the exe behind it sits in a folder named after the version, which changes on
 every update. Put the shortcut on a copy of the exe instead.
 
@@ -186,6 +186,11 @@ is for a machine that has the .NET SDK, which is most machines that run pi.
   the same exe, unpacked into the tool store, with a `picadence` command on the path.
   It needs the .NET 10 SDK, because `dotnet tool` ships with the SDK rather than with
   the runtime. `dotnet tool update -g Ypyl.Picadence` moves it forward.
+
+The command gives your terminal back: it starts the tray in a copy with no window,
+so the prompt is there again the moment the icon appears, and closing that terminal
+leaves the tray alone. Running `picadence` a second time says `picadence is already
+running` and does nothing else, because one icon is one tray.
 
 Then install the pi half, below.
 

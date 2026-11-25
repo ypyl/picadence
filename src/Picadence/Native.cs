@@ -361,6 +361,16 @@ internal static class Native
     /// <summary>Starts a process without a window of its own and without a console.</summary>
     internal const uint CREATE_NO_WINDOW = 0x08000000;
 
+    /// <summary>
+    /// Starts a process outside the job of the one that started it, so a shell that
+    /// kills its job when a tab closes leaves this process alone. A job that does not
+    /// allow it makes the call fail with access denied.
+    /// </summary>
+    internal const uint CREATE_BREAKAWAY_FROM_JOB = 0x01000000;
+
+    /// <summary>The processes in the snapshot, not their modules.</summary>
+    internal const uint TH32CS_SNAPPROCESS = 0x00000002;
+
     [StructLayout(LayoutKind.Sequential)]
     internal struct StartupInfo
     {
@@ -392,6 +402,44 @@ internal static class Native
         public int dwProcessId;
         public int dwThreadId;
     }
+
+    /// <summary>
+    /// One row of the process snapshot. The image name is a fixed buffer rather than a
+    /// string so nothing has to be marshalled out of it under AOT.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe struct ProcessEntry
+    {
+        public int dwSize;
+        public int cntUsage;
+        public int th32ProcessID;
+        public nint th32DefaultHeapID;
+        public int th32ModuleID;
+        public int cntThreads;
+        public int th32ParentProcessID;
+        public int pcPriClassBase;
+        public int dwFlags;
+        public fixed char szExeFile[260];
+    }
+
+    /// <summary>
+    /// The base name of the image in one snapshot row, without its path.
+    /// </summary>
+    internal static unsafe string ImageName(ProcessEntry* entry) => new(entry->szExeFile);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern nint CreateToolhelp32Snapshot(uint flags, int processId);
+
+    /// <summary>
+    /// The snapshot is filled through a pointer, not a marshalled argument: the entry
+    /// is one flat block of native memory, and nothing here needs a second copy of it
+    /// or a marshaller's opinion about its character buffer.
+    /// </summary>
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern unsafe bool Process32FirstW(nint snapshot, ProcessEntry* entry);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern unsafe bool Process32NextW(nint snapshot, ProcessEntry* entry);
 
     /// <summary>
     /// CreateProcess takes one command line and is allowed to write to it, so the

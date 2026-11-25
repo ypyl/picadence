@@ -17,9 +17,9 @@ Rules:
 
 - `dotnet build picadence.sln -c Release` finished in 4 s with 0 warnings and 0
   errors, on this machine, 2026-11-20.
-- `dotnet test picadence.sln -c Release` reported 114 passed, 0 failed, on
-  2026-11-21 (111 after the scheduled-ping change, 62 before it).
-  `node --test extensions/picadence.test.mjs` reported 13 passed, up from 7.
+- `dotnet test picadence.sln -c Release` reported 193 passed, 0 failed, and
+  `node --test extensions/picadence.test.mjs` 28 passed, on 2026-11-25 (114 and
+  13 on 2026-11-21).
 - `dotnet run --project src/Picadence -c Release` started the tray and the child
   process stayed alive past 6 s, 2026-11-20. It runs the JIT build, so it costs
   about 19 MB; the AOT publish is the build a user runs.
@@ -150,6 +150,21 @@ Rules:
   workload at `C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools`,
   found with `vswhere`, 2026-11-20.
 - Terminal is Windows Terminal (`WT_SESSION` is set), 2026-11-20.
+- The .NET CLI installs a native tool as a batch file: `picadence` was
+  `%USERPROFILE%\.dotnet\tools\picadence.cmd`, one line running the exe from the
+  version folder in the store. cmd waits for what a batch file starts even when
+  that is a GUI-subsystem program, and the shell waits for cmd, so the tray held
+  the terminal it was started from. Measured 2026-11-25 with the 0.4.0 exe:
+  started straight from PowerShell the prompt came back in 36 ms with the tray
+  alive; through a `.cmd` shim of the same shape, cmd was still running after
+  3 s. The exe itself reports PE subsystem 2, which is why a shell does not wait
+  for it directly.
+- The start that detaches was checked by hand against the packed tool on
+  2026-11-25, from a fresh PowerShell: `picadence` returned the prompt in 103 ms
+  with one tray running; a second `picadence` said `picadence is already running`
+  in 55 ms and left one tray; and killing the shell that started the first one
+  left that tray running. `dotnet pack -p:Version=0.0.0-local` wrote the same
+  batch shim around the AOT exe, installed into `.tmp/tools`, since uninstalled.
 
 ## Generated files
 

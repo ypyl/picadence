@@ -81,8 +81,14 @@ export function pingAction(state, ping, now = Date.now()) {
 }
 
 /**
- * Reads this session's ping file, deletes it, and sends it when it is still
- * worth sending. Deleting before sending means a failing send cannot loop.
+ * Reads this session's ping file, deletes it, and sends it when it is still worth
+ * sending. Deleting before sending means a failing send cannot loop.
+ *
+ * The file is claimed by renaming it before anything is read, so the name the tray
+ * writes is free while these words are being handled: a window that lands in the
+ * middle of a poll writes a new file the next poll finds, instead of being deleted
+ * unread. A claim is one poll wide and holds words nobody reads again if it outlives
+ * a crash, which is the harmless side of the trade.
  */
 export function pollPings({ directory, sessionId, state, send, now = Date.now() }) {
   if (!directory || !isPlainSessionId(sessionId)) {
@@ -90,22 +96,30 @@ export function pollPings({ directory, sessionId, state, send, now = Date.now() 
   }
 
   const file = path.join(directory, `${sessionId}.json`);
+  const claim = `${file}.${process.pid}.reading`;
+  try {
+    fs.renameSync(file, claim);
+  } catch {
+    // Nothing to read, or the tray holds it now: the next poll looks again.
+    return { action: "skip", reason: "nothing" };
+  }
+
   let ping;
   try {
-    ping = JSON.parse(fs.readFileSync(file, "utf8"));
+    ping = JSON.parse(fs.readFileSync(claim, "utf8"));
   } catch {
     ping = undefined;
   }
 
-  if (ping !== undefined) {
-    try {
-      fs.unlinkSync(file);
-    } catch {
-      // The tray may have rewritten it; the next poll reads that one.
-    }
+  try {
+    fs.unlinkSync(claim);
+  } catch {
+    // A claim that cannot be removed is not stuck: the tray's own name is free.
   }
 
-  const decision = ping ? pingAction(state, ping, now) : { action: "skip", reason: "nothing" };
+  // A body that cannot be read is still a body: it is gone either way, so an
+  // unreadable ping cannot be re-read every poll for the life of the machine.
+  const decision = ping ? pingAction(state, ping, now) : { action: "skip", reason: "unreadable" };
   if (decision.action === "send") {
     send(decision.text);
   }

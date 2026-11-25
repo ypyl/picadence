@@ -179,7 +179,7 @@ is for a machine that has the .NET SDK, which is most machines that run pi.
 
 - **winget**: `winget install Ypyl.Picadence`. The package is in review in the
   community repository; until it is merged, use the release asset.
-- **The release asset**: `picadence-v0.3.0-win-x64.exe` from the releases page.
+- **The release asset**: `picadence-v0.4.0-win-x64.exe` from the releases page.
   Double-click it. There is no installer and no runtime to install: the file is the
   program.
 - **The .NET tool**: `dotnet tool install -g Ypyl.Picadence`, then `picadence`. It is
@@ -197,7 +197,7 @@ file is the one the release workflow built; each release note carries its hash, 
 you can check the copy you have:
 
 ```powershell
-Get-FileHash .\picadence-v0.3.0-win-x64.exe -Algorithm SHA256
+Get-FileHash .\picadence-v0.4.0-win-x64.exe -Algorithm SHA256
 ```
 
 If it matches, **More info → Run anyway** is the same file, and the warning is

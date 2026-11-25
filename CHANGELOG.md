@@ -5,6 +5,10 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+## picadence-v0.4.0
+
+- The tray installs as a .NET tool as well: `dotnet tool install -g Ypyl.Picadence`,
+  from nuget.org. The exe stays the way a machine without the .NET SDK installs it.
 - A monthly or yearly cadence keeps its day of the month, so one armed on the 31st
   fires on the 31st again once February is past, and a leap day comes back in the
   next leap year.

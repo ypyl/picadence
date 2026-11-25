@@ -62,7 +62,13 @@ public static class SchedulePlan
         {
             if (!live.TryGetValue(schedule.SessionId, out var session))
             {
-                PlanCold(schedule, keptById, startedAt, now, pings, written);
+                // A kept session's cadence is what opens its tab, so its row has to
+                // say when. No process holds the record, so it is keyed by session id
+                // alone, which is the only part of the reference that exists.
+                if (PlanCold(schedule, keptById, startedAt, now, pings, written) is { } cold)
+                {
+                    view[new SessionRef(0, schedule.SessionId)] = cold;
+                }
                 continue;
             }
 
@@ -93,9 +99,10 @@ public static class SchedulePlan
     /// kept it, because a pin is how they said they wanted it back. A start that
     /// cannot work is not attempted: the window counts as missed and is scheduled
     /// forward like any other, so a broken pin does not become a tray that tries
-    /// every second.
+    /// every second. Returns the record the row should read, or null when there is
+    /// no row, which is every session the user did not keep.
     /// </summary>
-    private static void PlanCold(
+    private static Schedule? PlanCold(
         Schedule schedule,
         IReadOnlyDictionary<string, KeptSession> kept,
         Func<string, DateTimeOffset?>? startedAt,
@@ -103,16 +110,23 @@ public static class SchedulePlan
         List<Ping> pings,
         Dictionary<string, Schedule> written)
     {
-        if (!schedule.IsDue(now) || !kept.TryGetValue(schedule.SessionId, out var entry))
+        if (!kept.TryGetValue(schedule.SessionId, out var entry))
         {
-            return;
+            // No row: the user never kept this session, so its cadence has nowhere
+            // to be shown and nothing to start.
+            return null;
+        }
+
+        if (!schedule.IsDue(now))
+        {
+            return schedule;
         }
 
         // A tab that was started seconds ago has not written its state yet. Waiting
         // is what keeps one window to one tab.
         if (startedAt?.Invoke(schedule.SessionId) is { } started && now - started < StartGrace)
         {
-            return;
+            return schedule;
         }
 
         var missed = schedule.Every.MissedBetween(schedule.NextAt, now);
@@ -126,7 +140,9 @@ public static class SchedulePlan
                 launch));
         }
 
-        written[schedule.SessionId] = schedule.AfterFiring(now);
+        var next = schedule.AfterFiring(now);
+        written[schedule.SessionId] = next;
+        return next;
     }
 
     /// <summary>

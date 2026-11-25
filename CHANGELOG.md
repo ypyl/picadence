@@ -5,6 +5,9 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- A kept session that is not running shows its cadence and when it will next open
+  its tab, instead of saying only that it is not running.
+
 - A session with its own name shows it on its row, under the folder, before its
   state. A session named after its folder is not made to say it twice.
 

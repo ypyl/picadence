@@ -274,10 +274,15 @@ export async function collectArtifacts(root, dir) {
     });
   };
 
+  // evidence is a kind of its own: an L3 change carries a rehearsal, a rollback and a
+  // reconciliation, and a gate that cannot show them approves words nobody read.
   for (const [file, kind] of [
     ['proposal.md', 'proposal'],
     ['design.md', 'design'],
     ['tasks.md', 'tasks'],
+    ['rehearsal.md', 'evidence'],
+    ['rollback.md', 'evidence'],
+    ['reconciliation.md', 'evidence'],
   ]) {
     const abs = path.join(dir, file);
     if (existsSync(abs)) await add(abs, kind, file);
@@ -315,7 +320,7 @@ export async function collectArtifacts(root, dir) {
 // the rest after. A file the human cannot see cannot be approved, and a file
 // that is not approved does not belong in the record.
 export function arrange(files, gateKind) {
-  const order = ['proposal', 'spec', 'adr', 'design', 'tasks'];
+  const order = ['proposal', 'spec', 'adr', 'evidence', 'design', 'tasks'];
   return [...files].sort((a, b) => {
     const rank = (file) => (file.kind === gateKind ? -1 : order.indexOf(file.kind));
     return rank(a) - rank(b) || a.label.localeCompare(b.label);
@@ -339,7 +344,12 @@ export function defaultGate(gateKind, files = []) {
 // decision, which is the one thing the two gates exist to prevent.
 export function selectForGate(files, gate) {
   if (gate === 'all') return files;
-  const kinds = gate === 'adr' ? ['adr', 'proposal'] : ['spec', 'proposal'];
+  const kinds =
+    gate === 'adr'
+      ? ['adr', 'proposal']
+      : gate === 'evidence'
+        ? ['evidence', 'proposal']
+        : ['spec', 'proposal'];
   return files.filter((file) => kinds.includes(file.kind));
 }
 
@@ -620,8 +630,8 @@ function parseArgs(argv) {
     else rest.push(arg);
   }
   options.change = rest[0];
-  if (options.gate !== null && !['all', 'adr', 'spec'].includes(options.gate)) {
-    throw new Error(`--gate takes adr, spec, or all, not ${options.gate}`);
+  if (options.gate !== null && !['all', 'adr', 'spec', 'evidence'].includes(options.gate)) {
+    throw new Error(`--gate takes adr, spec, evidence, or all, not ${options.gate}`);
   }
   return options;
 }
@@ -653,7 +663,7 @@ function summary(decision, record, target) {
 export async function main(argv) {
   const options = parseArgs(argv);
   if (options.help || !options.change) {
-    console.log(`usage: node scripts/gate.mjs <change> [--gate adr|spec|all] [--rev N] [--static] [--timeout 900] [--port N] [--by name] [--no-open]
+    console.log(`usage: node scripts/gate.mjs <change> [--gate adr|spec|evidence|all] [--rev N] [--static] [--timeout 900] [--port N] [--by name] [--no-open]
        node scripts/gate.mjs <change> --verify
 
 Renders the change's artifacts to a page, waits for approve or request changes,
@@ -804,6 +814,8 @@ when one no longer matches the file it names.`);
       if (approvedBy) console.log(`Approval:  recorded as ${approvedBy}`);
       if (gate === 'adr' && collected.files.some((file) => file.kind === 'spec')) {
         console.log('Next gate: --gate spec, after this one is approved.');
+      } else if (gate === 'adr' && collected.files.some((file) => file.kind === 'evidence')) {
+        console.log('Next gate: --gate evidence, after this one is approved.');
       }
       console.log(
         idle

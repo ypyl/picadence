@@ -8,6 +8,9 @@
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
     <StripSymbols>true</StripSymbols>
+    <!-- No symbols beside the release build, and none in the tool package, where a
+         pdb is five times the exe. A Debug build keeps its own. -->
+    <DebugType Condition="'$(Configuration)' == 'Release'">None</DebugType>
     <OptimizationPreference>Size</OptimizationPreference>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
@@ -15,8 +18,25 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <!-- A second channel, decided in adr/0006: the same AOT publish, wrapped as a .NET
+       tool for `dotnet tool install`. The exe stays the product's own install, so
+       nothing here changes what the program does or how it is built. -->
+  <PropertyGroup>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>picadence</ToolCommandName>
+    <PackageId>Ypyl.Picadence</PackageId>
+    <Authors>Yauhen Pyl</Authors>
+    <Description>A Windows tray indicator for pi sessions: which tab is working, which is waiting for you, and which failed.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>pi;coding-agent;tray;windows</PackageTags>
+    <RepositoryUrl>https://github.com/ypyl/picadence</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="Picadence.Tests" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

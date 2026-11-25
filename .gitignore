@@ -1,5 +1,7 @@
 # Agent scratch space: logs, dumps, one-off scripts, fetched pages.
 .tmp/
+# Where the release workflow packs, and where a local rehearsal packs.
+artifacts/
 
 # Scratch a tool writes in the working directory without being asked, because the
 # Files section in AGENTS.md cannot redirect it. Delete the output when the task

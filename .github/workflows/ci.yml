@@ -4,12 +4,13 @@
 name: ci
 
 on:
-  # A branch push gets a run of its own, because the loop merges on a green one.
-  # No branch filter: filtering to main meant a change branch started nothing and
-  # every change had to be dispatched by hand, which is the step the loop waits on.
-  # A tag does not: the tag names a commit that already ran, and a second build of
-  # the same tree says nothing new. Releases are cut from the run they already have.
+  # Every branch gets a run of its own, because the loop merges on a green one.
+  # Naming `branches` is also what keeps tags out: a tag names a commit that already
+  # ran, so a second build of the same tree says nothing new, and the release
+  # workflow is the one a tag should start.
   push:
+    branches:
+      - '**'
   pull_request:
   workflow_dispatch:
 

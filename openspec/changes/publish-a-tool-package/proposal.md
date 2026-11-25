@@ -79,3 +79,14 @@ Level: **L3**. Two gates: the ADR, then the evidence (`rehearsal.md`, `rollback.
 - Artifact: adr/0006-a-tool-package-on-nuget.md sha256:6c6d144d7c048a2efeb5efda9d5fc2756409031a02869da654b4ea972bf3dcc8
 - Artifact: openspec/changes/publish-a-tool-package/proposal.md sha256:f49abfdd463017bd2ff86de14911083272fac4e6e56dddd5dcfc7ed41cffe333
 - Words: "(none)"
+
+## Approval
+
+- Gate: L3 evidence
+- Approved by: Yauhen Pyl
+- Approved at: 2026-11-25
+- Artifact: openspec/changes/publish-a-tool-package/reconciliation.md sha256:163fc314eed1040381315cafc7a6e0d4935a7cc716778e8fd48763fd5a5f1daf
+- Artifact: openspec/changes/publish-a-tool-package/rehearsal.md sha256:389f7925714fa5725c5d2a1c89484b9ace5d03669896dd6da13b8e5ec72a6fd2
+- Artifact: openspec/changes/publish-a-tool-package/rollback.md sha256:3ddd0221e7914acc18029e09110ffa44e0cffb1a58f3ca32915e3832066f9e86
+- Artifact: openspec/changes/publish-a-tool-package/proposal.md sha256:f49abfdd463017bd2ff86de14911083272fac4e6e56dddd5dcfc7ed41cffe333
+- Words: "(none)"

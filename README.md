@@ -100,6 +100,11 @@ moves. If a version of picadence before 0.3 registered itself, it did so under
 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`; delete the `picadence`
 value there once and use the shortcut instead.
 
+The .NET tool route is not the one to start at login. Its `picadence` command is a
+batch file, so a shortcut to it shows a console window for as long as the tray runs,
+and the exe behind it sits in a folder named after the version, which changes on
+every update. Put the shortcut on a copy of the exe instead.
+
 ## Wake a session on a cadence
 
 Right-click a session row and pick a cadence: every 15 minutes, every hour, every
@@ -169,13 +174,18 @@ enough; there is no restart and no dialog.
 
 ## Install the tray
 
-Two ways, same file:
+Three ways, same file. The first two need nothing on the machine already; the third
+is for a machine that has the .NET SDK, which is most machines that run pi.
 
 - **winget**: `winget install Ypyl.Picadence`. The package is in review in the
   community repository; until it is merged, use the release asset.
 - **The release asset**: `picadence-v0.3.0-win-x64.exe` from the releases page.
   Double-click it. There is no installer and no runtime to install: the file is the
   program.
+- **The .NET tool**: `dotnet tool install -g Ypyl.Picadence`, then `picadence`. It is
+  the same exe, unpacked into the tool store, with a `picadence` command on the path.
+  It needs the .NET 10 SDK, because `dotnet tool` ships with the SDK rather than with
+  the runtime. `dotnet tool update -g Ypyl.Picadence` moves it forward.
 
 Then install the pi half, below.
 

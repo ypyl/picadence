@@ -1,0 +1,129 @@
+# Publishes the tool package to nuget.org from a tag, and unlists a version when a
+# release has to be taken back. Decided in adr/0006: the key lives an hour and comes
+# from a GitHub OIDC token, so no secret is stored anywhere, and a version published
+# here can never be reused.
+name: release
+
+on:
+  push:
+    tags:
+      - 'picadence-v*'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'publish, or unlist to take a version back'
+        required: true
+        default: unlist
+      version:
+        description: 'the version to unlist, for example 0.4.0'
+        required: true
+
+permissions:
+  contents: read # the tree being packed
+  id-token: write # the OIDC token nuget.org exchanges for a one-hour key
+
+jobs:
+  publish:
+    if: github.event_name == 'push' || inputs.mode == 'publish'
+    runs-on: windows-latest
+    timeout-minutes: 25
+    environment: release
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # The tag is the version. The two cannot drift because there is only one.
+      - name: Read the version from the tag
+        shell: bash
+        run: |
+          tag="${{ github.ref_name }}"
+          version="${tag#picadence-v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$tag does not name a version"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Install the local gate
+        run: git config core.hooksPath .githooks
+
+      # What the image shipped, so a green release says which SDK proved it.
+      - name: Record the toolchain
+        shell: bash
+        run: |
+          dotnet --version
+          node --version
+
+      - name: Install the OpenSpec CLI
+        shell: bash
+        run: |
+          version=$(sed -n 's/^- OpenSpec CLI: \([0-9][0-9.]*\).*/\1/p' AGENTS.md | head -1)
+          npm install --global "@fission-ai/openspec@$version"
+
+      # A tag can name a commit that never ran, or a red one, and a package version
+      # is permanent. So the whole check runs here instead of trusting the tag.
+      - name: Verify the tree
+        shell: bash
+        run: bash scripts/verify.sh
+
+      - name: Log in to nuget.org
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      # Symbols stay out of the package: they are five times the exe.
+      - name: Pack
+        shell: bash
+        run: |
+          dotnet pack src/Picadence/Picadence.csproj -c Release \
+            -p:Version="$VERSION" -p:DebugType=None -o artifacts
+
+      # The package is permanent, so what is in it is checked before it is pushed: the
+      # exe, the readme, the tool settings, and no 10 MB pdb.
+      - name: Check the package
+        shell: pwsh
+        run: |
+          if (Select-String -Path artifacts/*.nupkg -Pattern 'Picadence\.pdb' -Quiet) {
+            throw "the package carries debug symbols"
+          }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead((Get-ChildItem artifacts/*.nupkg)[0].FullName)
+          try { $zip.Entries | ForEach-Object { $_.FullName } } finally { $zip.Dispose() }
+
+      # No --skip-duplicate: a version that already exists is a mistake worth failing.
+      - name: Push
+        shell: bash
+        run: |
+          dotnet nuget push "artifacts/Ypyl.Picadence.$VERSION.nupkg" \
+            --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json
+
+  unlist:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'unlist'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    environment: release
+    steps:
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Log in to nuget.org
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      # Unlisting hides a version from search and from a versionless install. It does
+      # not free the number: 0.4.0 can never be published again.
+      - name: Unlist
+        shell: bash
+        run: |
+          dotnet nuget delete Ypyl.Picadence "${{ inputs.version }}" \
+            --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json \
+            --non-interactive

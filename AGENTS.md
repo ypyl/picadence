@@ -669,9 +669,14 @@ human, not a guess.
 - Build: dotnet build picadence.sln -c Release
 - Test: dotnet test picadence.sln -c Release && node --test extensions/picadence.test.mjs
 - Run: dotnet run --project src/Picadence -c Release
-- Secrets: none, and none planned: both halves exchange local files
+- Secrets: none, and none planned: both halves exchange local files; the NuGet
+  publish takes a one-hour key from a GitHub OIDC token, so nothing is stored
 - Environments: one, this machine; agent state lives in %LOCALAPPDATA%/picadence and no server exists
 - OpenSpec CLI: 2.1.0 (the only external tool; check `openspec --version`)
+- NuGet: `Ypyl.Picadence` on nuget.org, the same AOT exe as a .NET tool; published by
+  `.github/workflows/release.yml` from a `picadence-v<semver>` tag, through the
+  trusted publishing policy for `ypyl/picadence`, `release.yml`, environment
+  `release`. The profile name travels as the repository variable `NUGET_USER`.
 - Versions: git tags `<product>-v<semver>`, cut at release. No version file,
   except `package.json`, whose `version` is the pi package's and moves with the
   last tag.
@@ -745,10 +750,16 @@ Rollback puts the previous version back, and says how long that stays possible.
 
 A block is all four lines or none. `none` is a value; an empty line is a bug.
 
-- Release:
-- Deploy:
-- Smoke:
-- Rollback:
+This project is **versioned**, and the only thing it deploys is a package: a tag
+starts `release.yml`, which packs the same AOT exe as a .NET tool and pushes it to
+nuget.org with a key that lives an hour (adr/0006). The exe beside the tag is a
+release asset, uploaded by the ci run that already passed. Unlisting is watched with
+the Deploy line, because it is the same workflow.
+
+- Release: git tag picadence-v<semver> && git push origin picadence-v<semver>
+- Deploy: gh run watch $(gh run list --workflow release.yml --limit 1 --json databaseId --jq '.[0].databaseId') --exit-status
+- Smoke: dotnet tool install --tool-path .tmp/smoke Ypyl.Picadence --version <semver> && dotnet tool uninstall --tool-path .tmp/smoke Ypyl.Picadence
+- Rollback: gh workflow run release.yml -f mode=unlist -f version=<semver>
 
 ## Files
 

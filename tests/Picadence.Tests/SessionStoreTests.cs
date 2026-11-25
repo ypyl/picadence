@@ -39,7 +39,7 @@ public sealed class SessionStoreTests : IDisposable
         var before = File.ReadAllText(livePath);
 
         var store = new SessionStore(_directory, (pid, _, _) => pid == 100);
-        var sessions = store.ReadAll(Now);
+        var sessions = store.ReadAll();
 
         var only = Assert.Single(sessions);
         Assert.Equal(100, only.Pid);
@@ -58,20 +58,20 @@ public sealed class SessionStoreTests : IDisposable
         var path = Path.Combine(_directory, name);
         var store = new SessionStore(_directory, (_, _, _) => true);
 
-        var first = Assert.Single(store.ReadAll(Now));
-        var second = Assert.Single(store.ReadAll(Now.AddSeconds(1)));
+        var first = Assert.Single(store.ReadAll());
+        var second = Assert.Single(store.ReadAll());
         Assert.Same(first, second);
 
         // A different length is a different file, so it is parsed again.
         WriteFile(500, "idle");
-        var third = Assert.Single(store.ReadAll(Now.AddSeconds(2)));
+        var third = Assert.Single(store.ReadAll());
         Assert.NotSame(second, third);
         Assert.Equal(AgentState.Idle, third.State);
 
         // The same bytes with a new write time are also parsed again, which is how
         // a transition the shell reports late still arrives on the next tick.
         File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(1));
-        var fourth = Assert.Single(store.ReadAll(Now.AddSeconds(3)));
+        var fourth = Assert.Single(store.ReadAll());
         Assert.NotSame(third, fourth);
         Assert.Equal(AgentState.Idle, fourth.State);
     }
@@ -87,7 +87,7 @@ public sealed class SessionStoreTests : IDisposable
 
         var store = new SessionStore(_directory, (_, _, _) => true);
 
-        Assert.Empty(store.ReadAll(Now));
+        Assert.Empty(store.ReadAll());
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public sealed class SessionStoreTests : IDisposable
 
         var store = new SessionStore(_directory, (_, _, _) => true);
 
-        Assert.Empty(store.ReadAll(Now));
+        Assert.Empty(store.ReadAll());
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public sealed class SessionStoreTests : IDisposable
         var missing = Path.Combine(_directory, "absent");
         var store = new SessionStore(missing, (_, _, _) => true);
 
-        Assert.Empty(store.ReadAll(Now));
+        Assert.Empty(store.ReadAll());
     }
 }
 
@@ -156,7 +156,7 @@ public class StalePidTests : IDisposable
             _directory,
             (_, fileWritten, _) => SessionStore.StartedBefore(reused, fileWritten));
 
-        Assert.Empty(store.ReadAll(DateTimeOffset.UtcNow));
+        Assert.Empty(store.ReadAll());
         Assert.False(File.Exists(path), "the state a dead session left behind is removed");
     }
 
@@ -170,7 +170,7 @@ public class StalePidTests : IDisposable
             _directory,
             (_, fileWritten, _) => SessionStore.StartedBefore(written.AddHours(-3), fileWritten));
 
-        Assert.Single(store.ReadAll(DateTimeOffset.UtcNow));
+        Assert.Single(store.ReadAll());
         Assert.True(File.Exists(path));
     }
 
@@ -223,7 +223,7 @@ public class StartedTogetherTests
                 (_, _, claimed) => claimed is { } start
                     && SessionStore.StartedTogether(Started.AddDays(-6), start.UtcDateTime));
 
-            Assert.Empty(store.ReadAll(DateTimeOffset.UtcNow));
+            Assert.Empty(store.ReadAll());
             Assert.False(File.Exists(path));
         }
         finally
@@ -254,7 +254,7 @@ public class StartedTogetherTests
                     return SessionStore.StartedBefore(written.AddMinutes(-5), fileWritten);
                 });
 
-            Assert.Single(store.ReadAll(DateTimeOffset.UtcNow));
+            Assert.Single(store.ReadAll());
             Assert.Null(seen);
         }
         finally

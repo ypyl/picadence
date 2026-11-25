@@ -52,7 +52,7 @@ public sealed class SessionStore(string directory, Func<int, DateTime, DateTimeO
     public static bool StartedTogether(DateTime createdUtc, DateTime claimedUtc) =>
         (createdUtc - claimedUtc).Duration() <= TimeSpan.FromSeconds(2);
 
-    public IReadOnlyList<AgentSession> ReadAll(DateTimeOffset now)
+    public IReadOnlyList<AgentSession> ReadAll()
     {
         if (!System.IO.Directory.Exists(Directory))
         {

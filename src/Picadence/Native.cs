@@ -29,7 +29,7 @@ internal static class Native
     internal const int VK_ESCAPE = 0x1B;
     internal const int SW_HIDE = 0;
     internal const int SW_SHOWNORMAL = 1;
-    internal const int SW_SHOWNA = 8;
+
 
     internal const int WS_EX_TOOLWINDOW = 0x00000080;
     internal const int CS_DROPSHADOW = 0x00020000;
@@ -40,7 +40,6 @@ internal static class Native
     internal const int DT_SINGLELINE = 0x0020;
     internal const int DT_END_ELLIPSIS = 0x8000;
     internal const int DT_NOPREFIX = 0x0800;
-    internal const int DT_WORDBREAK = 0x0010;
     internal const int TRANSPARENT = 1;
     internal const int FW_NORMAL = 400;
     internal const int FW_SEMIBOLD = 600;
@@ -63,14 +62,10 @@ internal static class Native
 
     internal const int NIF_MESSAGE = 0x01;
     internal const int NIF_ICON = 0x02;
-    internal const int NIF_TIP = 0x04;
-
 
     internal const int PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
 
     internal const int WS_POPUP = unchecked((int)0x80000000);
-
-    internal const int CommandQuit = 1;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     internal struct NotifyIconData
@@ -231,23 +226,6 @@ internal static class Native
 
     [DllImport("user32.dll")]
     internal static extern bool DestroyIcon(nint icon);
-
-    [DllImport("advapi32.dll", CharSet = CharSet.Unicode)]
-    internal static extern int RegOpenKeyExW(nint key, string subKey, int options, int rights, out nint result);
-
-    [DllImport("advapi32.dll", CharSet = CharSet.Unicode)]
-    internal static extern int RegQueryValueExW(
-        nint key, string valueName, nint reserved, out int type, byte[]? data, ref int size);
-
-    [DllImport("advapi32.dll", CharSet = CharSet.Unicode)]
-    internal static extern int RegSetValueExW(
-        nint key, string valueName, nint reserved, int type, byte[] data, int size);
-
-    [DllImport("advapi32.dll", CharSet = CharSet.Unicode)]
-    internal static extern int RegDeleteValueW(nint key, string valueName);
-
-    [DllImport("advapi32.dll")]
-    internal static extern int RegCloseKey(nint key);
 
     [DllImport("kernel32.dll")]
     internal static extern nint OpenProcess(int access, bool inheritHandle, int processId);

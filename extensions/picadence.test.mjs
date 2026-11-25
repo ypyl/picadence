@@ -221,6 +221,47 @@ test("a cadence follows its session across restarts and resumes", () => {
   }
 });
 
+test("a ping written while one is being read is not lost", () => {
+  const { directory, clean } = withPings();
+  const realRead = fs.readFileSync;
+  try {
+    const at = new Date().toISOString();
+    const file = path.join(directory, "abc-123.json");
+    writePing(directory, "abc-123", { at, prompt: "first" });
+    const sent = [];
+
+    // The tray writes the next window in the middle of this poll: between the
+    // moment the extension starts reading and the moment it deletes.
+    fs.readFileSync = (target, ...rest) => {
+      const data = realRead(target, ...rest);
+      if (path.resolve(String(target)).startsWith(path.resolve(file))) {
+        writePing(directory, "abc-123", { at, prompt: "second" });
+      }
+      return data;
+    };
+
+    const decision = pollPings({
+      directory,
+      sessionId: "abc-123",
+      state: "idle",
+      send: (text) => sent.push(text),
+    });
+
+    assert.equal(decision.action, "send");
+    assert.deepEqual(sent, ["first"]);
+    assert.equal(fs.existsSync(file), true, "the second ping survives the read of the first");
+
+    // And the next poll delivers it, rather than finding nothing to do.
+    fs.readFileSync = realRead;
+    pollPings({ directory, sessionId: "abc-123", state: "idle", send: (text) => sent.push(text) });
+    assert.deepEqual(sent, ["first", "second"]);
+    assert.equal(fs.existsSync(file), false);
+  } finally {
+    fs.readFileSync = realRead;
+    clean();
+  }
+});
+
 test("a busy session is skipped and the window counts as missed", () => {
   const { directory, clean } = withPings();
   try {
@@ -260,8 +301,13 @@ test("a ping that cannot be read is dropped without a turn", () => {
     fs.writeFileSync(path.join(directory, "abc-123.json"), "not json", "utf8");
     const sent = [];
     const decision = pollPings({ directory, sessionId: "abc-123", state: "idle", send: (text) => sent.push(text) });
-    assert.equal(decision.reason, "nothing");
+    assert.equal(decision.reason, "unreadable");
     assert.deepEqual(sent, []);
+    assert.equal(
+      fs.existsSync(path.join(directory, "abc-123.json")),
+      false,
+      "and it is not read again on every poll",
+    );
   } finally {
     clean();
   }

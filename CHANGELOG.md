@@ -5,6 +5,11 @@ are in `AGENTS.md` under **Versions and changelog**.
 
 ## Unreleased
 
+- The `picadence` command gives the terminal back. It starts the tray in a copy with
+  no window and returns at once, so the tab it was started from is free and closing
+  it leaves the tray running. A second `picadence` says it is already running instead
+  of adding a second icon.
+
 ## picadence-v0.4.0
 
 - The tray installs as a .NET tool as well: `dotnet tool install -g Ypyl.Picadence`,

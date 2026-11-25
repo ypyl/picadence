@@ -245,36 +245,71 @@ internal static class Program
             return false;
         }
 
-        var commandLine = launch.CommandLine;
+        return Spawn(launch.CommandLine, launch.WorkingDirectory, Native.CREATE_NO_WINDOW);
+    }
+
+    /// <summary>
+    /// Starts the copy that becomes the tray: no window, no console, and outside the
+    /// job of the shell that asked for it where the job allows that, so closing the
+    /// shell or the window it was in leaves the tray where it is.
+    /// </summary>
+    private static bool StartDetached()
+    {
+        if (Environment.ProcessPath is not { Length: > 0 } exe)
+        {
+            return false;
+        }
+
+        var commandLine = $"\"{exe}\" {Startup.DetachedMarker}";
+        var directory = Path.GetDirectoryName(exe);
+
+        // A job that refuses the breakaway fails this with access denied, so the plain
+        // attempt is the fallback rather than no start at all.
+        return Spawn(commandLine, directory, Native.CREATE_NO_WINDOW | Native.CREATE_BREAKAWAY_FROM_JOB)
+            || Spawn(commandLine, directory, Native.CREATE_NO_WINDOW);
+    }
+
+    /// <summary>Starts one process the way the flags say, and holds nothing of it afterwards.</summary>
+    private static unsafe bool Spawn(string commandLine, string? workingDirectory, uint creationFlags)
+    {
         var buffer = new char[commandLine.Length + 1];
         commandLine.CopyTo(0, buffer, 0, commandLine.Length);
 
         var startup = new Native.StartupInfo { cb = Marshal.SizeOf<Native.StartupInfo>() };
-        bool started;
-        unsafe
+        fixed (char* line = buffer)
         {
-            fixed (char* line = buffer)
+            var started = Native.CreateProcessW(
+                0,
+                line,
+                0,
+                0,
+                false,
+                creationFlags,
+                0,
+                workingDirectory,
+                ref startup,
+                out var process);
+            if (!started)
             {
-                started = Native.CreateProcessW(
-                    0,
-                    line,
-                    0,
-                    0,
-                    false,
-                    Native.CREATE_NO_WINDOW,
-                    0,
-                    launch.WorkingDirectory,
-                    ref startup,
-                    out var process);
-                if (started)
-                {
-                    Native.CloseHandle(process.hThread);
-                    Native.CloseHandle(process.hProcess);
-                }
+                return false;
             }
+
+            Native.CloseHandle(process.hThread);
+            Native.CloseHandle(process.hProcess);
+            return true;
+        }
+    }
+
+    /// <summary>Whether another process already holds the name one tray holds.</summary>
+    private static bool TrayRunning()
+    {
+        if (!Mutex.TryOpenExisting(Startup.MutexName, out var running))
+        {
+            return false;
         }
 
-        return started;
+        running.Dispose();
+        return true;
     }
 
     private static nint CreateIconFor(AgentState state) =>
@@ -282,8 +317,39 @@ internal static class Program
             0, IconPixels.Size, IconPixels.Size, 1, 32,
             IconPixels.AndMask(), IconPixels.Bgra(state));
 
-    private static unsafe int Main()
+    private static unsafe int Main(string[] args)
     {
+        // A shell that waits for this process holds a terminal, so this process hands
+        // the tray to a copy and leaves. A tray already up is told where it was asked
+        // for, and nothing starts.
+        var action = Startup.Decide(
+            TrayRunning(),
+            Parent.IsWaitingShell(),
+            Startup.IsDetachedCopy(args));
+
+        if (action == StartupAction.AlreadyRunning)
+        {
+            Console.WriteLine(Startup.AlreadyRunningNotice);
+            return 0;
+        }
+
+        // A copy that cannot be started still leaves this process as the tray: losing
+        // the prompt is the lesser fault, and the other one is a start that shows
+        // nothing.
+        if (action == StartupAction.Detach && StartDetached())
+        {
+            return 0;
+        }
+
+        // The name is what makes this the only tray. It is taken after the probe, so a
+        // race between two starts ends with one of them saying so rather than two icons.
+        using var held = new Mutex(true, Startup.MutexName, out var only);
+        if (!only)
+        {
+            Console.WriteLine(Startup.AlreadyRunningNotice);
+            return 0;
+        }
+
         // Without this every size in the panel is a guess on a scaled monitor.
         Native.SetProcessDpiAwarenessContext(ProcessPerMonitorV2);
 
